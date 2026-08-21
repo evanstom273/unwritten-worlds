@@ -404,3 +404,20 @@ body,
 .equip-icon-stone {
 	background: #7a7a7a;
 }
+
+.equip-icon-planks {
+	background: linear-gradient(#c9a066 25%, #b8894f 25%, #b8894f 50%, #c9a066 50%, #c9a066 75%, #b8894f 75%);
+}
+
+.equip-icon-glass {
+	background: rgba(180, 220, 240, 0.55);
+	border: 1px solid rgba(200, 235, 255, 0.6);
+}
+
+.equip-icon-log {
+	background: linear-gradient(90deg, #6b4a2a 20%, #8b6238 20%, #8b6238 40%, #6b4a2a 40%, #6b4a2a 60%, #8b6238 60%, #8b6238 80%, #6b4a2a 80%);
+}
+
+.equip-icon-log-top {
+	background: radial-gradient(circle, #5a3d22 15%, #8b6238 16%, #8b6238 35%, #6b4a2a 36%, #6b4a2a 55%, #8b6238 56%);
+}

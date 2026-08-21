@@ -1,4 +1,5 @@
 import { BlockId, isReplaceableBlock } from '../voxel/BlockId';
+import { logAxisFromPlacementNormal } from '../voxel/BlockState';
 import { CHUNK_SIZE } from '../voxel/WorldConstants';
 import type { World } from '../voxel/World';
 import type { WorldRenderer } from '../voxel/WorldRenderer';
@@ -76,7 +77,20 @@ export class BlockInteraction {
 			return false;
 		}
 
-		if (!this.world.setBlock(target.placeX, target.placeY, target.placeZ, entry.blockId)) {
+		const blockState =
+			entry.blockId === BlockId.LOG
+				? logAxisFromPlacementNormal(target.normalX, target.normalY, target.normalZ)
+				: 0;
+
+		if (
+			!this.world.setBlock(
+				target.placeX,
+				target.placeY,
+				target.placeZ,
+				entry.blockId,
+				blockState,
+			)
+		) {
 			return false;
 		}
 

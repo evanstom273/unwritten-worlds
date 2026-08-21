@@ -1,4 +1,6 @@
 import type { BlockId } from './BlockId';
+import type { BlockState } from './BlockState';
+import { DEFAULT_BLOCK_STATE } from './BlockState';
 import { ChunkSection } from './ChunkSection';
 import { SECTION_SIZE } from './WorldConstants';
 
@@ -36,11 +38,28 @@ export class ChunkColumn {
 		return section.getBlock(localX, localY, localZ);
 	}
 
-	setBlock(localX: number, worldY: number, localZ: number, blockId: BlockId): void {
+	getBlockState(localX: number, worldY: number, localZ: number): BlockState {
+		const sectionY = Math.floor(worldY / SECTION_SIZE);
+		const section = this.sections.get(sectionY);
+		if (!section) {
+			return DEFAULT_BLOCK_STATE;
+		}
+
+		const localY = worldY - sectionY * SECTION_SIZE;
+		return section.getBlockState(localX, localY, localZ);
+	}
+
+	setBlock(
+		localX: number,
+		worldY: number,
+		localZ: number,
+		blockId: BlockId,
+		blockState: BlockState = DEFAULT_BLOCK_STATE,
+	): void {
 		const sectionY = Math.floor(worldY / SECTION_SIZE);
 		const localY = worldY - sectionY * SECTION_SIZE;
 		const section = this.getOrCreateSection(sectionY);
-		section.setBlock(localX, localY, localZ, blockId);
+		section.setBlock(localX, localY, localZ, blockId, blockState);
 	}
 
 	getSectionCount(): number {
