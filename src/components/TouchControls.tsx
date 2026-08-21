@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { QuickEquipSnapshot } from '../game/equipment/QuickEquipManager';
 import { QuickEquipChannel } from '../game/equipment/QuickEquipChannel';
 import { EquipSlotIcon } from './EquipSlotIcon';
@@ -6,7 +7,25 @@ interface TouchControlsProps {
 	snapshot: QuickEquipSnapshot;
 }
 
-export function TouchControls({ snapshot }: TouchControlsProps) {
+function touchControlsPropsEqual(prev: TouchControlsProps, next: TouchControlsProps): boolean {
+	const prevChannels = prev.snapshot.channels;
+	const nextChannels = next.snapshot.channels;
+
+	for (const channel of Object.values(QuickEquipChannel)) {
+		const prevEntry = prevChannels[channel].selectedEntry;
+		const nextEntry = nextChannels[channel].selectedEntry;
+		if (prevEntry.id !== nextEntry.id || prevEntry.type !== nextEntry.type) {
+			return false;
+		}
+	}
+
+	return (
+		prev.snapshot.lastChangedChannel === next.snapshot.lastChangedChannel &&
+		prev.snapshot.lastChangedAtMs === next.snapshot.lastChangedAtMs
+	);
+}
+
+function TouchControlsInner({ snapshot }: TouchControlsProps) {
 	const pulseChannel = snapshot.lastChangedChannel;
 	const pulseActive = performance.now() - snapshot.lastChangedAtMs < 400;
 
@@ -83,3 +102,5 @@ export function TouchControls({ snapshot }: TouchControlsProps) {
 		</div>
 	);
 }
+
+export const TouchControls = memo(TouchControlsInner, touchControlsPropsEqual);
