@@ -1,6 +1,6 @@
 export type RGB = readonly [number, number, number];
 
-const TILE_SIZE = 16;
+const TILE_SIZE = 32;
 
 function rgb(r: number, g: number, b: number): RGB {
 	return [
@@ -74,11 +74,11 @@ export const GRASS_TOP_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => 
 
 export const GRASS_SIDE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
 	const variation = seamlessHash(x, y, 2) * 16;
-	if (y < 4) {
+	if (y < 8) {
 		return rgb(70 + variation, 128 + variation * 0.5, 40 + variation * 0.25);
 	}
 
-	const t = (y - 4) / 12;
+	const t = (y - 8) / 24;
 	const grass = rgb(68 + variation * 0.4, 118 + variation * 0.3, 38);
 	const dirt = rgb(118 + variation, 86 + variation * 0.5, 52 + variation * 0.3);
 	return rgb(
@@ -101,7 +101,7 @@ export const STONE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
 });
 
 export const PLANKS_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
-	const plankRow = Math.floor(y / 4);
+	const plankRow = Math.floor(y / 8);
 	const grain = seamlessHash(x, plankRow, 7) * 14;
 	const base = 168 + grain;
 	return rgb(base, base * 0.72, base * 0.42);
@@ -113,10 +113,10 @@ export const LOG_TOP_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
 	const ring = Math.hypot(centerX, centerY);
 	const ringNoise = seamlessHash(x, y, 8) * 12;
 	const base = 118 + ringNoise;
-	if (ring < 2) {
+	if (ring < 4) {
 		return rgb(base * 0.55, base * 0.38, base * 0.22);
 	}
-	if (Math.abs(ring - 5) < 0.8 || Math.abs(ring - 8) < 0.8) {
+	if (Math.abs(ring - 10) < 1.6 || Math.abs(ring - 16) < 1.6) {
 		return rgb(base * 0.65, base * 0.45, base * 0.26);
 	}
 	return rgb(base * 0.82, base * 0.58, base * 0.34);

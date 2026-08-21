@@ -25,8 +25,8 @@ export interface TextureAtlasLayout {
 	readonly tiles: ReadonlyMap<TextureId, AtlasTile>;
 }
 
-export const TEXTURE_TILE_SIZE = 16;
-export const TEXTURE_ATLAS_WIDTH = 64;
+export const TEXTURE_TILE_SIZE = 32;
+export const TEXTURE_ATLAS_WIDTH = 128;
 export const TEXTURE_ATLAS_HEIGHT = 64;
 
 const TILE_INSET = 0.5 / TEXTURE_ATLAS_WIDTH;
