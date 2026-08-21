@@ -85,10 +85,22 @@ export function GameCanvas() {
 						</span>
 					</div>
 					<div className="debug-row">
-						<span>Target</span>
+						<span>Hit</span>
 						<span>
 							{stats.targetHit
 								? `${stats.targetBlockX}, ${stats.targetBlockY}, ${stats.targetBlockZ}`
+								: '—'}
+						</span>
+					</div>
+					<div className="debug-row">
+						<span>Face</span>
+						<span>{stats.targetHit ? stats.targetFace : '—'}</span>
+					</div>
+					<div className="debug-row">
+						<span>Place</span>
+						<span>
+							{stats.targetHit
+								? `${stats.placeBlockX}, ${stats.placeBlockY}, ${stats.placeBlockZ}`
 								: '—'}
 						</span>
 					</div>

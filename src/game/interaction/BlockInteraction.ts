@@ -1,4 +1,4 @@
-import { BlockId, isOpaqueBlock } from '../voxel/BlockId';
+import { BlockId, isReplaceableBlock } from '../voxel/BlockId';
 import { CHUNK_SIZE } from '../voxel/WorldConstants';
 import type { World } from '../voxel/World';
 import type { WorldRenderer } from '../voxel/WorldRenderer';
@@ -52,7 +52,7 @@ export class BlockInteraction {
 			return false;
 		}
 
-		if (isOpaqueBlock(this.world.getBlock(target.placeX, target.placeY, target.placeZ))) {
+		if (!isReplaceableBlock(this.world.getBlock(target.placeX, target.placeY, target.placeZ))) {
 			return false;
 		}
 

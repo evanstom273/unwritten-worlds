@@ -10,3 +10,7 @@ export type BlockId = (typeof BlockId)[keyof typeof BlockId];
 export function isOpaqueBlock(blockId: BlockId): boolean {
 	return blockId !== BlockId.AIR;
 }
+
+export function isReplaceableBlock(blockId: BlockId): boolean {
+	return blockId === BlockId.AIR;
+}

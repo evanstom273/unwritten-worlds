@@ -5,6 +5,7 @@ import { QuickEquipChannel } from './equipment/QuickEquipChannel';
 import { InputManager } from './input/InputManager';
 import { BlockHighlight } from './interaction/BlockHighlight';
 import { BlockInteraction } from './interaction/BlockInteraction';
+import { BlockPlacementHighlight } from './interaction/BlockPlacementHighlight';
 import { raycastVoxels, type VoxelTarget } from './interaction/VoxelRaycast';
 import { PlayerCamera } from './player/PlayerCamera';
 import { PlayerController } from './player/PlayerController';
@@ -58,6 +59,10 @@ export interface GameDebugStats {
 	targetBlockX: number;
 	targetBlockY: number;
 	targetBlockZ: number;
+	targetFace: string;
+	placeBlockX: number;
+	placeBlockY: number;
+	placeBlockZ: number;
 	targetHit: boolean;
 }
 
@@ -76,6 +81,7 @@ export class Game {
 	private readonly quickEquip: QuickEquipManager;
 	private readonly blockInteraction: BlockInteraction;
 	private readonly blockHighlight: BlockHighlight;
+	private readonly blockPlacementHighlight: BlockPlacementHighlight;
 	private readonly rayOrigin = new THREE.Vector3();
 	private readonly rayDirection = new THREE.Vector3();
 	private quickEquipCallback: ((snapshot: QuickEquipSnapshot) => void) | null = null;
@@ -139,6 +145,7 @@ export class Game {
 		this.quickEquip = new QuickEquipManager();
 		this.blockInteraction = new BlockInteraction(this.world, this.worldRenderer, this.quickEquip);
 		this.blockHighlight = new BlockHighlight(this.scene);
+		this.blockPlacementHighlight = new BlockPlacementHighlight(this.scene);
 		this.inputManager = new InputManager(this.renderer.domElement);
 
 		const spawnChunkX = Math.floor(spawn.x / CHUNK_SIZE);
@@ -268,10 +275,14 @@ export class Game {
 		);
 
 		this.blockHighlight.updateTarget(target.blockX, target.blockY, target.blockZ, target.hit);
+		this.blockPlacementHighlight.updatePlacement(
+			target.placeX,
+			target.placeY,
+			target.placeZ,
+			target.hit,
+		);
 
-		if (target.hit) {
-			this.lastTarget = target;
-		}
+		this.lastTarget = target;
 	}
 
 	private lastTarget: VoxelTarget = {
@@ -279,12 +290,16 @@ export class Game {
 		blockX: 0,
 		blockY: 0,
 		blockZ: 0,
-		placeX: 0,
-		placeY: 0,
-		placeZ: 0,
+		hitPositionX: 0,
+		hitPositionY: 0,
+		hitPositionZ: 0,
 		normalX: 0,
 		normalY: 0,
 		normalZ: 0,
+		face: null,
+		placeX: 0,
+		placeY: 0,
+		placeZ: 0,
 	};
 
 	private handleBlockInteraction(
@@ -351,6 +366,10 @@ export class Game {
 			targetBlockX: this.lastTarget.blockX,
 			targetBlockY: this.lastTarget.blockY,
 			targetBlockZ: this.lastTarget.blockZ,
+			targetFace: this.lastTarget.face ?? '—',
+			placeBlockX: this.lastTarget.placeX,
+			placeBlockY: this.lastTarget.placeY,
+			placeBlockZ: this.lastTarget.placeZ,
 			targetHit: this.lastTarget.hit,
 		};
 	}
@@ -462,6 +481,7 @@ export class Game {
 
 		this.inputManager.dispose();
 		this.blockHighlight.dispose();
+		this.blockPlacementHighlight.dispose();
 		this.worldRenderer.dispose();
 
 		this.renderer.dispose();

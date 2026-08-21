@@ -1,18 +1,22 @@
 import { isOpaqueBlock } from '../voxel/BlockId';
 import type { World } from '../voxel/World';
+import { blockFaceFromNormal, type BlockFace } from './BlockFace';
 
 export interface VoxelTarget {
 	readonly hit: boolean;
 	readonly blockX: number;
 	readonly blockY: number;
 	readonly blockZ: number;
-	/** Last empty voxel traversed immediately before the solid hit — primary placement candidate. */
-	readonly placeX: number;
-	readonly placeY: number;
-	readonly placeZ: number;
+	readonly hitPositionX: number;
+	readonly hitPositionY: number;
+	readonly hitPositionZ: number;
 	readonly normalX: number;
 	readonly normalY: number;
 	readonly normalZ: number;
+	readonly face: BlockFace | null;
+	readonly placeX: number;
+	readonly placeY: number;
+	readonly placeZ: number;
 }
 
 const NO_TARGET: VoxelTarget = {
@@ -20,13 +24,19 @@ const NO_TARGET: VoxelTarget = {
 	blockX: 0,
 	blockY: 0,
 	blockZ: 0,
-	placeX: 0,
-	placeY: 0,
-	placeZ: 0,
+	hitPositionX: 0,
+	hitPositionY: 0,
+	hitPositionZ: 0,
 	normalX: 0,
 	normalY: 0,
 	normalZ: 0,
+	face: null,
+	placeX: 0,
+	placeY: 0,
+	placeZ: 0,
 };
+
+type CrossedAxis = 'x' | 'y' | 'z';
 
 export function raycastVoxels(
 	world: World,
@@ -46,6 +56,7 @@ export function raycastVoxels(
 	const rayX = dirX / length;
 	const rayY = dirY / length;
 	const rayZ = dirZ / length;
+
 	let currentX = Math.floor(originX);
 	let currentY = Math.floor(originY);
 	let currentZ = Math.floor(originZ);
@@ -62,39 +73,42 @@ export function raycastVoxels(
 	let tMaxY = nextBoundaryT(originY, rayY, stepY);
 	let tMaxZ = nextBoundaryT(originZ, rayZ, stepZ);
 
-	let previousX = currentX;
-	let previousY = currentY;
-	let previousZ = currentZ;
-
 	for (let step = 0; step < 256; step++) {
+		let crossedAxis: CrossedAxis;
+		let hitT: number;
+
 		if (tMaxX < tMaxY) {
 			if (tMaxX < tMaxZ) {
-				if (tMaxX > maxDistance) {
+				hitT = tMaxX;
+				if (hitT > maxDistance) {
 					break;
 				}
-				previousX = currentX;
+				crossedAxis = 'x';
 				currentX += stepX;
 				tMaxX += tDeltaX;
 			} else {
-				if (tMaxZ > maxDistance) {
+				hitT = tMaxZ;
+				if (hitT > maxDistance) {
 					break;
 				}
-				previousZ = currentZ;
+				crossedAxis = 'z';
 				currentZ += stepZ;
 				tMaxZ += tDeltaZ;
 			}
 		} else if (tMaxY < tMaxZ) {
-			if (tMaxY > maxDistance) {
+			hitT = tMaxY;
+			if (hitT > maxDistance) {
 				break;
 			}
-			previousY = currentY;
+			crossedAxis = 'y';
 			currentY += stepY;
 			tMaxY += tDeltaY;
 		} else {
-			if (tMaxZ > maxDistance) {
+			hitT = tMaxZ;
+			if (hitT > maxDistance) {
 				break;
 			}
-			previousZ = currentZ;
+			crossedAxis = 'z';
 			currentZ += stepZ;
 			tMaxZ += tDeltaZ;
 		}
@@ -103,20 +117,30 @@ export function raycastVoxels(
 			break;
 		}
 
-		if (isOpaqueBlock(world.getBlock(currentX, currentY, currentZ))) {
-			return {
-				hit: true,
-				blockX: currentX,
-				blockY: currentY,
-				blockZ: currentZ,
-				placeX: previousX,
-				placeY: previousY,
-				placeZ: previousZ,
-				normalX: previousX - currentX,
-				normalY: previousY - currentY,
-				normalZ: previousZ - currentZ,
-			};
+		if (!isOpaqueBlock(world.getBlock(currentX, currentY, currentZ))) {
+			continue;
 		}
+
+		const normalX = crossedAxis === 'x' ? -stepX : 0;
+		const normalY = crossedAxis === 'y' ? -stepY : 0;
+		const normalZ = crossedAxis === 'z' ? -stepZ : 0;
+
+		return {
+			hit: true,
+			blockX: currentX,
+			blockY: currentY,
+			blockZ: currentZ,
+			hitPositionX: originX + rayX * hitT,
+			hitPositionY: originY + rayY * hitT,
+			hitPositionZ: originZ + rayZ * hitT,
+			normalX,
+			normalY,
+			normalZ,
+			face: blockFaceFromNormal(normalX, normalY, normalZ),
+			placeX: currentX + normalX,
+			placeY: currentY + normalY,
+			placeZ: currentZ + normalZ,
+		};
 	}
 
 	return NO_TARGET;
