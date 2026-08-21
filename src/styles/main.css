@@ -227,10 +227,10 @@ body,
 
 .debug-overlay {
 	position: absolute;
-	bottom: 0;
+	top: 0;
 	right: 0;
 	z-index: 1;
-	padding: 0.625rem 0.875rem;
+	padding: max(0.625rem, env(safe-area-inset-top)) max(0.875rem, env(safe-area-inset-right)) 0.625rem 0.875rem;
 	max-height: 100%;
 	overflow-y: auto;
 	pointer-events: none;
@@ -239,7 +239,7 @@ body,
 	font-size: 0.7rem;
 	line-height: 1.5;
 	background: rgba(0, 0, 0, 0.45);
-	border-top-left-radius: 4px;
+	border-bottom-left-radius: 4px;
 }
 
 .debug-row {
