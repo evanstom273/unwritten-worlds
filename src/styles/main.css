@@ -139,6 +139,7 @@ body,
 .touch-joystick {
 	grid-area: joy;
 	position: relative;
+	z-index: 1;
 	width: clamp(100px, 18vmin, 180px);
 	height: clamp(100px, 18vmin, 180px);
 	pointer-events: auto;
@@ -180,8 +181,10 @@ body,
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-width: clamp(34px, 7vmin, 48px);
-	min-height: clamp(34px, 7vmin, 48px);
+	position: relative;
+	z-index: 2;
+	min-width: clamp(40px, 8vmin, 52px);
+	min-height: clamp(40px, 8vmin, 52px);
 	padding: 0;
 	pointer-events: auto;
 	touch-action: manipulation;

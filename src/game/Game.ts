@@ -179,7 +179,14 @@ export class Game {
 	}
 
 	attachTouchControls(root: HTMLElement): void {
-		this.inputManager.attachTouchControls(root);
+		this.inputManager.attachTouchControls(root, {
+			onCycle: (channel) => {
+				this.cycleEquipChannel(channel);
+			},
+			onReset: (channel) => {
+				this.resetEquipChannel(channel);
+			},
+		});
 	}
 
 	detachTouchControls(): void {

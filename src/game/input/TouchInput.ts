@@ -1,4 +1,5 @@
 import { QuickEquipChannel } from '../equipment/QuickEquipChannel';
+import type { TouchEquipCallbacks } from './TouchEquipCallbacks';
 import {
 	BREAK_HOLD_MS,
 	EQUIP_LONG_PRESS_MS,
@@ -15,6 +16,7 @@ interface PointerPosition {
 
 interface EquipPressState {
 	channel: QuickEquipChannel;
+	element: HTMLElement;
 	startX: number;
 	startY: number;
 	startMs: number;
@@ -34,6 +36,7 @@ interface WorldPressState {
 
 export class TouchInput {
 	private root: HTMLElement | null = null;
+	private equipCallbacks: TouchEquipCallbacks | null = null;
 
 	moveX = 0;
 	moveZ = 0;
@@ -105,27 +108,37 @@ export class TouchInput {
 		document.addEventListener('visibilitychange', this.boundVisibilityChange);
 	}
 
-	attach(root: HTMLElement): void {
+	attach(root: HTMLElement, equipCallbacks?: TouchEquipCallbacks): void {
 		this.detach();
 		this.root = root;
-		this.joystickZone = root.querySelector('[data-touch="joystick"]');
-		this.joystickStick = root.querySelector('[data-touch="joystick-stick"]');
-		this.lookZone = root.querySelector('[data-touch="look"]');
-		this.jumpButton = root.querySelector('[data-touch="jump"]');
-		this.sprintButton = root.querySelector('[data-touch="sprint"]');
-		this.crouchButton = root.querySelector('[data-touch="crouch"]');
+		this.equipCallbacks = equipCallbacks ?? null;
+		this.refreshElementRefs();
 
 		this.updateJoystickMetrics();
-		root.addEventListener('pointerdown', this.boundPointerDown);
+		root.addEventListener('pointerdown', this.boundPointerDown, { capture: true });
+	}
+
+	private refreshElementRefs(): void {
+		if (!this.root) {
+			return;
+		}
+
+		this.joystickZone = this.root.querySelector('[data-touch="joystick"]');
+		this.joystickStick = this.root.querySelector('[data-touch="joystick-stick"]');
+		this.lookZone = this.root.querySelector('[data-touch="look"]');
+		this.jumpButton = this.root.querySelector('[data-touch="jump"]');
+		this.sprintButton = this.root.querySelector('[data-touch="sprint"]');
+		this.crouchButton = this.root.querySelector('[data-touch="crouch"]');
 	}
 
 	detach(): void {
 		this.stopWindowListeners();
 		if (this.root) {
-			this.root.removeEventListener('pointerdown', this.boundPointerDown);
+			this.root.removeEventListener('pointerdown', this.boundPointerDown, { capture: true });
 		}
 		this.reset();
 		this.root = null;
+		this.equipCallbacks = null;
 		this.joystickZone = null;
 		this.joystickStick = null;
 		this.lookZone = null;
@@ -141,6 +154,7 @@ export class TouchInput {
 	}
 
 	onLayoutChange(): void {
+		this.refreshElementRefs();
 		this.updateJoystickMetrics();
 	}
 
@@ -252,6 +266,8 @@ export class TouchInput {
 			return;
 		}
 
+		this.refreshElementRefs();
+
 		const isTouchPointer =
 			event.pointerType === 'touch' || event.pointerType === 'pen';
 		if (!isTouchPointer) {
@@ -259,6 +275,27 @@ export class TouchInput {
 		}
 
 		const target = event.target as Node;
+
+		if (target instanceof Element) {
+			const equipSlot = target.closest('.touch-equip-slot');
+			if (equipSlot instanceof HTMLElement) {
+				const channel = this.getEquipChannelFromElement(equipSlot);
+				if (channel !== null) {
+					event.preventDefault();
+					event.stopPropagation();
+					equipSlot.setPointerCapture(event.pointerId);
+					this.beginEquipPress(
+						event.pointerId,
+						channel,
+						equipSlot,
+						event.clientX,
+						event.clientY,
+					);
+					this.startWindowListeners();
+					return;
+				}
+			}
+		}
 
 		if (this.jumpButton?.contains(target)) {
 			event.preventDefault();
@@ -281,14 +318,6 @@ export class TouchInput {
 			event.preventDefault();
 			this.sprintPointerIds.add(event.pointerId);
 			this.sprint = true;
-			this.startWindowListeners();
-			return;
-		}
-
-		const equipChannel = this.getEquipChannelForTarget(target);
-		if (equipChannel !== null) {
-			event.preventDefault();
-			this.beginEquipPress(event.pointerId, equipChannel, event.clientX, event.clientY);
 			this.startWindowListeners();
 			return;
 		}
@@ -401,17 +430,8 @@ export class TouchInput {
 		}
 	}
 
-	private getEquipChannelForTarget(target: Node): QuickEquipChannel | null {
-		if (!(target instanceof Element)) {
-			return null;
-		}
-
-		const touchTarget = target.closest('[data-touch]');
-		if (!touchTarget) {
-			return null;
-		}
-
-		switch (touchTarget.getAttribute('data-touch')) {
+	private getEquipChannelFromElement(element: Element): QuickEquipChannel | null {
+		switch (element.getAttribute('data-touch')) {
 			case 'equip-top':
 				return QuickEquipChannel.TOP;
 			case 'equip-left':
@@ -428,6 +448,7 @@ export class TouchInput {
 	private beginEquipPress(
 		pointerId: number,
 		channel: QuickEquipChannel,
+		element: HTMLElement,
 		clientX: number,
 		clientY: number,
 	): void {
@@ -444,6 +465,7 @@ export class TouchInput {
 
 		this.equipPressByPointerId.set(pointerId, {
 			channel,
+			element,
 			startX: clientX,
 			startY: clientY,
 			startMs,
@@ -462,6 +484,10 @@ export class TouchInput {
 		window.clearTimeout(state.timerId);
 		this.equipPressByPointerId.delete(pointerId);
 
+		if (state.element.hasPointerCapture(pointerId)) {
+			state.element.releasePointerCapture(pointerId);
+		}
+
 		if (state.longPressFired) {
 			return;
 		}
@@ -470,6 +496,11 @@ export class TouchInput {
 	}
 
 	private fireEquipCycle(channel: QuickEquipChannel): void {
+		if (this.equipCallbacks) {
+			this.equipCallbacks.onCycle(channel);
+			return;
+		}
+
 		switch (channel) {
 			case QuickEquipChannel.TOP:
 				this.cycleTop = true;
@@ -487,6 +518,11 @@ export class TouchInput {
 	}
 
 	private fireEquipReset(channel: QuickEquipChannel): void {
+		if (this.equipCallbacks) {
+			this.equipCallbacks.onReset(channel);
+			return;
+		}
+
 		switch (channel) {
 			case QuickEquipChannel.TOP:
 				this.resetTop = true;
