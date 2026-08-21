@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { WORLD_DEPTH, WORLD_WIDTH } from './voxel/WorldConstants';
 
+const ROTATE_SENSITIVITY = 0.005;
+const MIN_DISTANCE = 30;
+const MAX_DISTANCE = 500;
+
 export class OrbitCamera {
 	private readonly camera: THREE.PerspectiveCamera;
 	private readonly target: THREE.Vector3;
@@ -10,12 +14,10 @@ export class OrbitCamera {
 	private elevation = Math.PI * 0.3;
 	private distance = 200;
 
-	private isDragging = false;
-	private lastPointerX = 0;
-	private lastPointerY = 0;
 	private activePointerId: number | null = null;
 	private lastPinchDistance: number | null = null;
 	private activePointers: Map<number, { x: number; y: number }> = new Map();
+	private isListeningOnWindow = false;
 
 	private readonly boundPointerDown: (event: PointerEvent) => void;
 	private readonly boundPointerMove: (event: PointerEvent) => void;
@@ -26,6 +28,8 @@ export class OrbitCamera {
 		this.camera = camera;
 		this.domElement = domElement;
 		this.target = new THREE.Vector3(WORLD_WIDTH / 2, 32, WORLD_DEPTH / 2);
+
+		this.domElement.style.touchAction = 'none';
 
 		this.boundPointerDown = (event) => {
 			this.onPointerDown(event);
@@ -41,39 +45,53 @@ export class OrbitCamera {
 		};
 
 		domElement.addEventListener('pointerdown', this.boundPointerDown);
-		domElement.addEventListener('pointermove', this.boundPointerMove);
-		domElement.addEventListener('pointerup', this.boundPointerUp);
-		domElement.addEventListener('pointercancel', this.boundPointerUp);
 		domElement.addEventListener('wheel', this.boundWheel, { passive: false });
 
 		this.updateCameraPosition();
 	}
 
-	update(): void {
-		this.updateCameraPosition();
-	}
-
 	dispose(): void {
+		this.stopWindowListeners();
 		this.domElement.removeEventListener('pointerdown', this.boundPointerDown);
-		this.domElement.removeEventListener('pointermove', this.boundPointerMove);
-		this.domElement.removeEventListener('pointerup', this.boundPointerUp);
-		this.domElement.removeEventListener('pointercancel', this.boundPointerUp);
 		this.domElement.removeEventListener('wheel', this.boundWheel);
 	}
 
+	private startWindowListeners(): void {
+		if (this.isListeningOnWindow) {
+			return;
+		}
+
+		window.addEventListener('pointermove', this.boundPointerMove, { capture: true });
+		window.addEventListener('pointerup', this.boundPointerUp, { capture: true });
+		window.addEventListener('pointercancel', this.boundPointerUp, { capture: true });
+		this.isListeningOnWindow = true;
+	}
+
+	private stopWindowListeners(): void {
+		if (!this.isListeningOnWindow) {
+			return;
+		}
+
+		window.removeEventListener('pointermove', this.boundPointerMove, { capture: true });
+		window.removeEventListener('pointerup', this.boundPointerUp, { capture: true });
+		window.removeEventListener('pointercancel', this.boundPointerUp, { capture: true });
+		this.isListeningOnWindow = false;
+	}
+
 	private onPointerDown(event: PointerEvent): void {
+		event.preventDefault();
+
 		this.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-		this.domElement.setPointerCapture(event.pointerId);
+		this.startWindowListeners();
 
 		if (this.activePointers.size === 1) {
-			this.isDragging = true;
 			this.activePointerId = event.pointerId;
-			this.lastPointerX = event.clientX;
-			this.lastPointerY = event.clientY;
 		} else if (this.activePointers.size === 2) {
-			this.isDragging = false;
+			this.activePointerId = null;
 			this.lastPinchDistance = this.getPinchDistance();
 		}
+
+		this.domElement.setPointerCapture(event.pointerId);
 	}
 
 	private onPointerMove(event: PointerEvent): void {
@@ -81,39 +99,49 @@ export class OrbitCamera {
 			return;
 		}
 
+		event.preventDefault();
+
+		const previous = this.activePointers.get(event.pointerId);
+		if (!previous) {
+			return;
+		}
+
+		const deltaX = event.clientX - previous.x;
+		const deltaY = event.clientY - previous.y;
 		this.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
 
 		if (this.activePointers.size >= 2) {
 			const pinchDistance = this.getPinchDistance();
-			if (pinchDistance !== null && this.lastPinchDistance !== null) {
+			if (pinchDistance !== null && this.lastPinchDistance !== null && this.lastPinchDistance > 0) {
 				const scale = pinchDistance / this.lastPinchDistance;
-				this.distance = Math.max(30, Math.min(500, this.distance / scale));
+				this.distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, this.distance / scale));
 				this.lastPinchDistance = pinchDistance;
 				this.updateCameraPosition();
 			}
 			return;
 		}
 
-		if (!this.isDragging || event.pointerId !== this.activePointerId) {
+		if (event.pointerId !== this.activePointerId) {
 			return;
 		}
 
-		const deltaX = event.clientX - this.lastPointerX;
-		const deltaY = event.clientY - this.lastPointerY;
-		this.lastPointerX = event.clientX;
-		this.lastPointerY = event.clientY;
-
-		this.azimuth -= deltaX * 0.005;
+		this.azimuth -= deltaX * ROTATE_SENSITIVITY;
 		this.elevation = Math.max(
 			0.1,
-			Math.min(Math.PI / 2 - 0.05, this.elevation + deltaY * 0.005),
+			Math.min(Math.PI / 2 - 0.05, this.elevation + deltaY * ROTATE_SENSITIVITY),
 		);
 
 		this.updateCameraPosition();
 	}
 
 	private onPointerUp(event: PointerEvent): void {
+		event.preventDefault();
+
 		this.activePointers.delete(event.pointerId);
+
+		if (this.domElement.hasPointerCapture(event.pointerId)) {
+			this.domElement.releasePointerCapture(event.pointerId);
+		}
 
 		if (this.activePointers.size < 2) {
 			this.lastPinchDistance = null;
@@ -122,21 +150,15 @@ export class OrbitCamera {
 		if (this.activePointers.size === 1) {
 			const remaining = this.activePointers.entries().next().value;
 			if (remaining) {
-				const [pointerId, position] = remaining;
-				this.isDragging = true;
+				const [pointerId] = remaining;
 				this.activePointerId = pointerId;
-				this.lastPointerX = position.x;
-				this.lastPointerY = position.y;
 			}
-		}
-
-		if (event.pointerId === this.activePointerId) {
-			this.isDragging = false;
+		} else {
 			this.activePointerId = null;
 		}
 
-		if (this.domElement.hasPointerCapture(event.pointerId)) {
-			this.domElement.releasePointerCapture(event.pointerId);
+		if (this.activePointers.size === 0) {
+			this.stopWindowListeners();
 		}
 	}
 
@@ -153,7 +175,7 @@ export class OrbitCamera {
 
 	private onWheel(event: WheelEvent): void {
 		event.preventDefault();
-		this.distance = Math.max(30, Math.min(500, this.distance + event.deltaY * 0.1));
+		this.distance = Math.max(MIN_DISTANCE, Math.min(MAX_DISTANCE, this.distance + event.deltaY * 0.1));
 		this.updateCameraPosition();
 	}
 
