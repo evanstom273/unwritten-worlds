@@ -22,12 +22,17 @@ export interface CollisionResult {
 
 const SKIN_WIDTH = 0.001;
 
-export function buildPlayerAABB(feetX: number, feetY: number, feetZ: number): AABB {
+export function buildPlayerAABB(
+	feetX: number,
+	feetY: number,
+	feetZ: number,
+	height: number = PLAYER_HEIGHT,
+): AABB {
 	return {
 		minX: feetX - PLAYER_HALF_WIDTH,
 		maxX: feetX + PLAYER_HALF_WIDTH,
 		minY: feetY,
-		maxY: feetY + PLAYER_HEIGHT,
+		maxY: feetY + height,
 		minZ: feetZ - PLAYER_HALF_WIDTH,
 		maxZ: feetZ + PLAYER_HALF_WIDTH,
 	};
@@ -42,6 +47,7 @@ export function resolveMovement(
 	velocityY: number,
 	velocityZ: number,
 	delta: number,
+	playerHeight: number = PLAYER_HEIGHT,
 ): CollisionResult {
 	let x = feetX;
 	let y = feetY;
@@ -52,7 +58,7 @@ export function resolveMovement(
 	let grounded = false;
 
 	if (vx !== 0) {
-		const resolved = resolveAxis(world, x, y, z, vx * delta, 'x');
+		const resolved = resolveAxis(world, x, y, z, vx * delta, 'x', playerHeight);
 		x = resolved.position;
 		if (resolved.hit) {
 			vx = 0;
@@ -60,7 +66,7 @@ export function resolveMovement(
 	}
 
 	if (vy !== 0) {
-		const resolved = resolveAxis(world, x, y, z, vy * delta, 'y');
+		const resolved = resolveAxis(world, x, y, z, vy * delta, 'y', playerHeight);
 		y = resolved.position;
 		if (resolved.hit) {
 			if (vy < 0) {
@@ -71,7 +77,7 @@ export function resolveMovement(
 	}
 
 	if (vz !== 0) {
-		const resolved = resolveAxis(world, x, y, z, vz * delta, 'z');
+		const resolved = resolveAxis(world, x, y, z, vz * delta, 'z', playerHeight);
 		z = resolved.position;
 		if (resolved.hit) {
 			vz = 0;
@@ -79,7 +85,7 @@ export function resolveMovement(
 	}
 
 	if (!grounded) {
-		grounded = probeGround(world, x, y, z);
+		grounded = probeGround(world, x, y, z, playerHeight);
 	}
 
 	return {
@@ -102,6 +108,7 @@ function resolveAxis(
 	feetZ: number,
 	movement: number,
 	axis: Axis,
+	playerHeight: number,
 ): { position: number; hit: boolean } {
 	if (movement === 0) {
 		return { position: axis === 'x' ? feetX : axis === 'y' ? feetY : feetZ, hit: false };
@@ -114,6 +121,7 @@ function resolveAxis(
 		axis === 'x' ? position : feetX,
 		axis === 'y' ? position : feetY,
 		axis === 'z' ? position : feetZ,
+		playerHeight,
 	);
 
 	const minBlockX = Math.floor(aabb.minX + SKIN_WIDTH);
@@ -140,7 +148,7 @@ function resolveAxis(
 					}
 				} else if (axis === 'y') {
 					if (movement > 0) {
-						position = blockY - PLAYER_HEIGHT - SKIN_WIDTH;
+						position = blockY - playerHeight - SKIN_WIDTH;
 					} else {
 						position = blockY + 1 + SKIN_WIDTH;
 					}
@@ -158,7 +166,14 @@ function resolveAxis(
 	return { position, hit };
 }
 
-function probeGround(world: World, feetX: number, feetY: number, feetZ: number): boolean {
+function probeGround(
+	world: World,
+	feetX: number,
+	feetY: number,
+	feetZ: number,
+	playerHeight: number,
+): boolean {
+	void playerHeight;
 	const probeY = feetY - 0.05;
 	const offsets: readonly [number, number][] = [
 		[-PLAYER_HALF_WIDTH + 0.05, -PLAYER_HALF_WIDTH + 0.05],

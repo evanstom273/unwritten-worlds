@@ -13,20 +13,32 @@ export class TouchInput {
 	lookX = 0;
 	lookY = 0;
 	jump = false;
+	jumpPressed = false;
 	sprint = false;
+	crouch = false;
 	primaryAction = false;
 	secondaryAction = false;
+	primaryActionPressed = false;
+	secondaryActionPressed = false;
+	flyTogglePressed = false;
 
 	private joystickZone: HTMLElement | null = null;
 	private joystickStick: HTMLElement | null = null;
 	private lookZone: HTMLElement | null = null;
 	private jumpButton: HTMLElement | null = null;
 	private sprintButton: HTMLElement | null = null;
+	private breakButton: HTMLElement | null = null;
+	private placeButton: HTMLElement | null = null;
+	private crouchButton: HTMLElement | null = null;
+	private flyButton: HTMLElement | null = null;
 
 	private joystickPointerId: number | null = null;
 	private lookPointerId: number | null = null;
 	private jumpPointerIds = new Set<number>();
 	private sprintPointerIds = new Set<number>();
+	private crouchPointerIds = new Set<number>();
+	private breakPointerIds = new Set<number>();
+	private placePointerIds = new Set<number>();
 	private activePointers = new Map<number, PointerPosition>();
 	private joystickCenter = { x: 0, y: 0 };
 	private joystickRadius = 60;
@@ -69,6 +81,10 @@ export class TouchInput {
 		this.lookZone = root.querySelector('[data-touch="look"]');
 		this.jumpButton = root.querySelector('[data-touch="jump"]');
 		this.sprintButton = root.querySelector('[data-touch="sprint"]');
+		this.breakButton = root.querySelector('[data-touch="break"]');
+		this.placeButton = root.querySelector('[data-touch="place"]');
+		this.crouchButton = root.querySelector('[data-touch="crouch"]');
+		this.flyButton = root.querySelector('[data-touch="fly"]');
 
 		this.updateJoystickMetrics();
 		root.addEventListener('pointerdown', this.boundPointerDown);
@@ -86,6 +102,10 @@ export class TouchInput {
 		this.lookZone = null;
 		this.jumpButton = null;
 		this.sprintButton = null;
+		this.breakButton = null;
+		this.placeButton = null;
+		this.crouchButton = null;
+		this.flyButton = null;
 	}
 
 	dispose(): void {
@@ -106,20 +126,33 @@ export class TouchInput {
 		return { lookX, lookY };
 	}
 
+	consumeEdgeActions(): void {
+		this.jumpPressed = false;
+		this.primaryActionPressed = false;
+		this.secondaryActionPressed = false;
+		this.flyTogglePressed = false;
+	}
+
 	reset(): void {
 		this.moveX = 0;
 		this.moveZ = 0;
 		this.lookX = 0;
 		this.lookY = 0;
 		this.jump = false;
+		this.jumpPressed = false;
 		this.sprint = false;
+		this.crouch = false;
 		this.primaryAction = false;
 		this.secondaryAction = false;
+		this.consumeEdgeActions();
 
 		this.joystickPointerId = null;
 		this.lookPointerId = null;
 		this.jumpPointerIds.clear();
 		this.sprintPointerIds.clear();
+		this.crouchPointerIds.clear();
+		this.breakPointerIds.clear();
+		this.placePointerIds.clear();
 		this.activePointers.clear();
 		this.resetJoystickVisual();
 		this.stopWindowListeners();
@@ -171,6 +204,40 @@ export class TouchInput {
 			event.preventDefault();
 			this.jumpPointerIds.add(event.pointerId);
 			this.jump = true;
+			this.jumpPressed = true;
+			this.startWindowListeners();
+			return;
+		}
+
+		if (this.breakButton?.contains(target)) {
+			event.preventDefault();
+			this.breakPointerIds.add(event.pointerId);
+			this.primaryAction = true;
+			this.primaryActionPressed = true;
+			this.startWindowListeners();
+			return;
+		}
+
+		if (this.placeButton?.contains(target)) {
+			event.preventDefault();
+			this.placePointerIds.add(event.pointerId);
+			this.secondaryAction = true;
+			this.secondaryActionPressed = true;
+			this.startWindowListeners();
+			return;
+		}
+
+		if (this.crouchButton?.contains(target)) {
+			event.preventDefault();
+			this.crouchPointerIds.add(event.pointerId);
+			this.crouch = true;
+			this.startWindowListeners();
+			return;
+		}
+
+		if (this.flyButton?.contains(target)) {
+			event.preventDefault();
+			this.flyTogglePressed = true;
 			this.startWindowListeners();
 			return;
 		}
@@ -228,6 +295,18 @@ export class TouchInput {
 			this.sprint = this.sprintPointerIds.size > 0;
 		}
 
+		if (this.crouchPointerIds.delete(event.pointerId)) {
+			this.crouch = this.crouchPointerIds.size > 0;
+		}
+
+		if (this.breakPointerIds.delete(event.pointerId)) {
+			this.primaryAction = this.breakPointerIds.size > 0;
+		}
+
+		if (this.placePointerIds.delete(event.pointerId)) {
+			this.secondaryAction = this.placePointerIds.size > 0;
+		}
+
 		if (event.pointerId === this.joystickPointerId) {
 			this.joystickPointerId = null;
 			this.moveX = 0;
@@ -245,7 +324,10 @@ export class TouchInput {
 			this.joystickPointerId === null &&
 			this.lookPointerId === null &&
 			this.jumpPointerIds.size === 0 &&
-			this.sprintPointerIds.size === 0
+			this.sprintPointerIds.size === 0 &&
+			this.crouchPointerIds.size === 0 &&
+			this.breakPointerIds.size === 0 &&
+			this.placePointerIds.size === 0
 		) {
 			this.stopWindowListeners();
 		}

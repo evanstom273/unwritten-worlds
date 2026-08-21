@@ -56,6 +56,7 @@ export class CameraEffects {
 
 		const moving =
 			player.grounded &&
+			!player.flying &&
 			player.horizontalSpeed > 0.15 &&
 			!player.airborne;
 
@@ -118,6 +119,7 @@ export class CameraEffects {
 		const speedRatio = Math.min(player.horizontalSpeed / SPRINT_SPEED, 1);
 		const sprinting =
 			player.grounded &&
+			!player.flying &&
 			player.horizontalSpeed > WALK_SPEED + 0.25 &&
 			speedRatio > 0.75;
 

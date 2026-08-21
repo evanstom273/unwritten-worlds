@@ -97,6 +97,25 @@ export class World {
 		return null;
 	}
 
+	setBlock(worldX: number, worldY: number, worldZ: number, blockId: BlockId): boolean {
+		if (!this.isInBounds(worldX, worldY, worldZ)) {
+			return false;
+		}
+
+		const chunkX = Math.floor(worldX / CHUNK_SIZE);
+		const chunkZ = Math.floor(worldZ / CHUNK_SIZE);
+		let column = this.columns.get(this.columnKey(chunkX, chunkZ));
+		if (!column) {
+			column = new ChunkColumn(chunkX, chunkZ);
+			this.columns.set(this.columnKey(chunkX, chunkZ), column);
+		}
+
+		const localX = worldX - chunkX * CHUNK_SIZE;
+		const localZ = worldZ - chunkZ * CHUNK_SIZE;
+		column.setBlock(localX, worldY, localZ, blockId);
+		return true;
+	}
+
 	private generateFlatTerrain(): void {
 		for (let chunkZ = 0; chunkZ < CHUNKS_Z; chunkZ++) {
 			for (let chunkX = 0; chunkX < CHUNKS_X; chunkX++) {

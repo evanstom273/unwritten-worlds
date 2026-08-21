@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import {
 	MAX_PITCH,
 	MOUSE_SENSITIVITY,
-	PLAYER_EYE_HEIGHT,
 	TOUCH_LOOK_SENSITIVITY,
 } from '../config/PlayerConfig';
 import { BASE_FOV } from '../config/RenderConfig';
@@ -28,15 +27,28 @@ export class PlayerCamera {
 		this.cameraEffects.update(delta, player, this.yaw);
 	}
 
+	getPitch(): number {
+		return this.pitch;
+	}
+
+	getLookDirection(out: THREE.Vector3): void {
+		out.set(
+			-Math.sin(this.yaw) * Math.cos(this.pitch),
+			Math.sin(this.pitch),
+			-Math.cos(this.yaw) * Math.cos(this.pitch),
+		);
+	}
+
 	updateCamera(
 		camera: THREE.PerspectiveCamera,
 		feetX: number,
 		feetY: number,
 		feetZ: number,
+		eyeHeight: number,
 	): void {
 		const visualOffset = this.cameraEffects.getVisualOffset();
 		const eyeX = feetX + visualOffset.x;
-		const eyeY = feetY + PLAYER_EYE_HEIGHT + visualOffset.y;
+		const eyeY = feetY + eyeHeight + visualOffset.y;
 		const eyeZ = feetZ + visualOffset.z;
 
 		camera.fov = this.cameraEffects.getFov();

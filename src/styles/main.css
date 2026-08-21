@@ -255,3 +255,193 @@ body,
 .debug-row span:last-child {
 	text-align: right;
 }
+
+.quick-equip-hud {
+	position: absolute;
+	left: 50%;
+	bottom: max(1rem, env(safe-area-inset-bottom));
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.35rem;
+	transform: translateX(-50%);
+	pointer-events: none;
+}
+
+.quick-equip-row {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.quick-equip-center {
+	width: 2.5rem;
+	height: 2.5rem;
+}
+
+.equip-slot {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.15rem;
+	min-width: 4.5rem;
+	padding: 0.35rem 0.5rem;
+	border-radius: 6px;
+	background: rgba(0, 0, 0, 0.35);
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.equip-slot-pulse {
+	transform: scale(1.08);
+	border-color: rgba(140, 210, 255, 0.85);
+}
+
+.equip-slot-label {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-size: 0.6rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: rgba(255, 255, 255, 0.55);
+}
+
+.equip-slot-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	border-radius: 4px;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-size: 0.85rem;
+	font-weight: 700;
+	color: rgba(255, 255, 255, 0.9);
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.equip-slot-icon-empty {
+	color: rgba(255, 255, 255, 0.35);
+}
+
+.equip-icon-grass {
+	background: #4a8f3a;
+}
+
+.equip-icon-grass-side {
+	background: linear-gradient(#4a8f3a 35%, #8b6914 35%);
+}
+
+.equip-icon-dirt {
+	background: #8b6914;
+}
+
+.equip-icon-stone {
+	background: #7a7a7a;
+}
+
+.equip-slot-name {
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-size: 0.65rem;
+	color: rgba(255, 255, 255, 0.75);
+}
+
+.touch-equip-open {
+	position: absolute;
+	left: 50%;
+	bottom: max(6.5rem, calc(env(safe-area-inset-bottom) + 5rem));
+	z-index: 4;
+	transform: translateX(-50%);
+	min-width: clamp(72px, 14vmin, 120px);
+	min-height: clamp(40px, 8vmin, 56px);
+	padding: 0.5rem 1rem;
+	border: 2px solid rgba(255, 255, 255, 0.3);
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.4);
+	color: rgba(255, 255, 255, 0.9);
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-size: clamp(0.75rem, 2.5vmin, 0.95rem);
+	font-weight: 600;
+	touch-action: none;
+}
+
+.equip-radial-backdrop {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.35);
+}
+
+.equip-radial {
+	position: relative;
+	width: min(70vmin, 320px);
+	height: min(70vmin, 320px);
+}
+
+.equip-radial-center {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 4.5rem;
+	height: 4.5rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.55);
+	border: 2px solid rgba(255, 255, 255, 0.25);
+	color: rgba(255, 255, 255, 0.8);
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-size: 0.8rem;
+	font-weight: 600;
+	pointer-events: none;
+}
+
+.equip-radial-option {
+	position: absolute;
+	min-width: clamp(72px, 16vmin, 120px);
+	min-height: clamp(48px, 10vmin, 72px);
+	padding: 0.5rem 0.75rem;
+	border: 2px solid rgba(255, 255, 255, 0.3);
+	border-radius: 10px;
+	background: rgba(0, 0, 0, 0.55);
+	color: rgba(255, 255, 255, 0.92);
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	font-size: clamp(0.75rem, 2.5vmin, 0.95rem);
+	font-weight: 600;
+	touch-action: none;
+}
+
+.equip-radial-top {
+	top: 0;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+.equip-radial-left {
+	left: 0;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.equip-radial-right {
+	right: 0;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.equip-radial-utility {
+	bottom: 0;
+	left: 50%;
+	transform: translateX(-50%);
+}
+
+.touch-actions-left {
+	left: max(1rem, env(safe-area-inset-left));
+	right: auto;
+	bottom: max(8rem, calc(env(safe-area-inset-bottom) + 6rem));
+}

@@ -46,9 +46,14 @@ export class InputManager {
 			this.state.moveX = this.touch.moveX;
 			this.state.moveZ = this.touch.moveZ;
 			this.state.jump = this.touch.jump;
+			this.state.jumpPressed = this.touch.jumpPressed;
 			this.state.sprint = this.touch.sprint;
+			this.state.crouch = this.touch.crouch;
 			this.state.primaryAction = this.touch.primaryAction;
 			this.state.secondaryAction = this.touch.secondaryAction;
+			this.state.primaryActionPressed = this.touch.primaryActionPressed;
+			this.state.secondaryActionPressed = this.touch.secondaryActionPressed;
+			this.state.flyTogglePressed = this.touch.flyTogglePressed;
 
 			const touchLook = this.touch.consumeLook();
 			this.state.lookX = touchLook.lookX;
@@ -57,9 +62,18 @@ export class InputManager {
 			this.state.moveX = this.keyboardMouse.moveX;
 			this.state.moveZ = this.keyboardMouse.moveZ;
 			this.state.jump = this.keyboardMouse.jump;
+			this.state.jumpPressed = this.keyboardMouse.jumpPressed;
 			this.state.sprint = this.keyboardMouse.sprint;
+			this.state.crouch = this.keyboardMouse.crouch;
 			this.state.primaryAction = this.keyboardMouse.primaryAction;
 			this.state.secondaryAction = this.keyboardMouse.secondaryAction;
+			this.state.primaryActionPressed = this.keyboardMouse.primaryActionPressed;
+			this.state.secondaryActionPressed = this.keyboardMouse.secondaryActionPressed;
+			this.state.flyTogglePressed = this.keyboardMouse.flyTogglePressed;
+			this.state.cycleTop = this.keyboardMouse.cycleTop;
+			this.state.cycleLeftHand = this.keyboardMouse.cycleLeftHand;
+			this.state.cycleRightHand = this.keyboardMouse.cycleRightHand;
+			this.state.cycleUtility = this.keyboardMouse.cycleUtility;
 
 			const mouseLook = this.keyboardMouse.consumeLook();
 			this.state.lookX = this.keyboardMouse.pointerLocked ? mouseLook.lookX : 0;
@@ -67,6 +81,11 @@ export class InputManager {
 		}
 
 		return this.state;
+	}
+
+	consumeEdgeActions(): void {
+		this.keyboardMouse.consumeEdgeActions();
+		this.touch.consumeEdgeActions();
 	}
 
 	resetAll(): void {
