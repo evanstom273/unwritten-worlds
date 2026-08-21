@@ -43,17 +43,24 @@ export class InputManager {
 		this.keyboardMouse.updateMovementFromKeys();
 
 		if (this.inputMode === 'touch') {
+			this.touch.updateInteractionTimers(performance.now());
+
 			this.state.moveX = this.touch.moveX;
 			this.state.moveZ = this.touch.moveZ;
 			this.state.jump = this.touch.jump;
 			this.state.jumpPressed = this.touch.jumpPressed;
 			this.state.sprint = this.touch.sprint;
 			this.state.crouch = this.touch.crouch;
-			this.state.primaryAction = this.touch.primaryAction;
-			this.state.secondaryAction = this.touch.secondaryAction;
 			this.state.primaryActionPressed = this.touch.primaryActionPressed;
 			this.state.secondaryActionPressed = this.touch.secondaryActionPressed;
-			this.state.flyTogglePressed = this.touch.flyTogglePressed;
+			this.state.cycleTop = this.touch.cycleTop;
+			this.state.cycleLeftHand = this.touch.cycleLeftHand;
+			this.state.cycleRightHand = this.touch.cycleRightHand;
+			this.state.cycleUtility = this.touch.cycleUtility;
+			this.state.resetTop = this.touch.resetTop;
+			this.state.resetLeftHand = this.touch.resetLeftHand;
+			this.state.resetRightHand = this.touch.resetRightHand;
+			this.state.resetUtility = this.touch.resetUtility;
 
 			const touchLook = this.touch.consumeLook();
 			this.state.lookX = touchLook.lookX;
@@ -69,7 +76,6 @@ export class InputManager {
 			this.state.secondaryAction = this.keyboardMouse.secondaryAction;
 			this.state.primaryActionPressed = this.keyboardMouse.primaryActionPressed;
 			this.state.secondaryActionPressed = this.keyboardMouse.secondaryActionPressed;
-			this.state.flyTogglePressed = this.keyboardMouse.flyTogglePressed;
 			this.state.cycleTop = this.keyboardMouse.cycleTop;
 			this.state.cycleLeftHand = this.keyboardMouse.cycleLeftHand;
 			this.state.cycleRightHand = this.keyboardMouse.cycleRightHand;

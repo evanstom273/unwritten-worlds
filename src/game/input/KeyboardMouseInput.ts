@@ -144,8 +144,8 @@ export class KeyboardMouseInput {
 		this.moveX = moveX;
 		this.moveZ = moveZ;
 		this.jump = this.keysDown.has('Space');
-		this.sprint = this.keysDown.has('ShiftLeft') || this.keysDown.has('ShiftRight');
-		this.crouch = this.keysDown.has('ControlLeft') || this.keysDown.has('ControlRight');
+		this.sprint = this.keysDown.has('ControlLeft') || this.keysDown.has('ControlRight');
+		this.crouch = this.keysDown.has('ShiftLeft') || this.keysDown.has('ShiftRight');
 	}
 
 	reset(): void {
@@ -164,12 +164,6 @@ export class KeyboardMouseInput {
 	}
 
 	private onKeyDown(event: KeyboardEvent): void {
-		if (event.code === 'KeyF' && !event.repeat) {
-			this.flyTogglePressed = true;
-			event.preventDefault();
-			return;
-		}
-
 		if (event.code === 'ArrowLeft' && !event.repeat) {
 			this.cycleLeftHand = true;
 			event.preventDefault();
@@ -198,7 +192,7 @@ export class KeyboardMouseInput {
 		this.keysDown.add(event.code);
 		this.updateMovementFromKeys();
 
-		if (['Space', 'ControlLeft', 'ControlRight'].includes(event.code)) {
+		if (['Space', 'ControlLeft', 'ControlRight', 'ShiftLeft', 'ShiftRight'].includes(event.code)) {
 			event.preventDefault();
 		}
 	}

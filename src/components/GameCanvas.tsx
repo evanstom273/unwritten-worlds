@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { DEBUG_HUD_ENABLED } from '../game/config/DebugConfig';
-import { QuickEquipChannel } from '../game/equipment/QuickEquipChannel';
 import { Game, type GameDebugStats, type QuickEquipSnapshot } from '../game/Game';
 import type { InputMode } from '../game/input/InputState';
 import { Crosshair } from './Crosshair';
-import { EquipmentRadial } from './EquipmentRadial';
 import { PointerLockHint } from './PointerLockHint';
 import { QuickEquipHud } from './QuickEquipHud';
 import { RotateDeviceOverlay } from './RotateDeviceOverlay';
@@ -19,7 +17,6 @@ export function GameCanvas() {
 	const [equipSnapshot, setEquipSnapshot] = useState<QuickEquipSnapshot | null>(null);
 	const [pointerLocked, setPointerLocked] = useState(false);
 	const [inputMode, setInputMode] = useState<InputMode>('keyboard-mouse');
-	const [radialOpen, setRadialOpen] = useState(false);
 	const isPortrait = usePortraitOrientation();
 
 	useEffect(() => {
@@ -54,44 +51,21 @@ export function GameCanvas() {
 		};
 	}, [inputMode]);
 
-	const showTouchControls = inputMode === 'touch' && !isPortrait;
+	const showTouchControls = inputMode === 'touch' && !isPortrait && equipSnapshot !== null;
+	const showDesktopEquipHud = inputMode === 'keyboard-mouse' && equipSnapshot !== null && !isPortrait;
 	const showPointerLockHint = inputMode === 'keyboard-mouse' && !pointerLocked && !isPortrait;
 	const showCrosshair = !isPortrait;
-
-	const handleRadialSelect = (channel: QuickEquipChannel): void => {
-		gameRef.current?.cycleEquipChannel(channel);
-		setRadialOpen(false);
-	};
 
 	return (
 		<>
 			<div ref={containerRef} className="game-canvas" />
 			{showCrosshair && <Crosshair />}
 			{showPointerLockHint && <PointerLockHint />}
-			{equipSnapshot && !isPortrait && (
-				<QuickEquipHud
-					snapshot={equipSnapshot}
-					showRadialHints={inputMode === 'touch'}
-				/>
-			)}
+			{showDesktopEquipHud && <QuickEquipHud snapshot={equipSnapshot} />}
 			{showTouchControls && (
-				<>
-					<button
-						type="button"
-						className="touch-equip-open"
-						onClick={() => setRadialOpen(true)}
-					>
-						Equip
-					</button>
-					<EquipmentRadial
-						open={radialOpen}
-						onSelectChannel={handleRadialSelect}
-						onClose={() => setRadialOpen(false)}
-					/>
-					<div ref={touchRef}>
-						<TouchControls />
-					</div>
-				</>
+				<div ref={touchRef}>
+					<TouchControls snapshot={equipSnapshot} />
+				</div>
 			)}
 			{isPortrait && <RotateDeviceOverlay />}
 			{DEBUG_HUD_ENABLED && stats && (

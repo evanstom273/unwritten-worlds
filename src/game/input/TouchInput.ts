@@ -1,8 +1,34 @@
+import { QuickEquipChannel } from '../equipment/QuickEquipChannel';
+import {
+	BREAK_HOLD_MS,
+	EQUIP_LONG_PRESS_MS,
+	TAP_MAX_DURATION_MS,
+	TAP_MAX_MOVEMENT_PX,
+} from '../config/TouchConfig';
+
 const JOYSTICK_DEADZONE = 0.12;
 
 interface PointerPosition {
 	x: number;
 	y: number;
+}
+
+interface EquipPressState {
+	channel: QuickEquipChannel;
+	startX: number;
+	startY: number;
+	startMs: number;
+	longPressFired: boolean;
+	timerId: number;
+}
+
+interface WorldPressState {
+	pointerId: number;
+	startX: number;
+	startY: number;
+	startMs: number;
+	moved: boolean;
+	breakCompleted: boolean;
 }
 
 export class TouchInput {
@@ -16,30 +42,37 @@ export class TouchInput {
 	jumpPressed = false;
 	sprint = false;
 	crouch = false;
-	primaryAction = false;
-	secondaryAction = false;
 	primaryActionPressed = false;
 	secondaryActionPressed = false;
-	flyTogglePressed = false;
+
+	cycleTop = false;
+	cycleLeftHand = false;
+	cycleRightHand = false;
+	cycleUtility = false;
+	resetTop = false;
+	resetLeftHand = false;
+	resetRightHand = false;
+	resetUtility = false;
 
 	private joystickZone: HTMLElement | null = null;
 	private joystickStick: HTMLElement | null = null;
 	private lookZone: HTMLElement | null = null;
 	private jumpButton: HTMLElement | null = null;
 	private sprintButton: HTMLElement | null = null;
-	private breakButton: HTMLElement | null = null;
-	private placeButton: HTMLElement | null = null;
 	private crouchButton: HTMLElement | null = null;
-	private flyButton: HTMLElement | null = null;
+	private equipTopButton: HTMLElement | null = null;
+	private equipLeftButton: HTMLElement | null = null;
+	private equipRightButton: HTMLElement | null = null;
+	private equipUtilityButton: HTMLElement | null = null;
 
 	private joystickPointerId: number | null = null;
 	private lookPointerId: number | null = null;
 	private jumpPointerIds = new Set<number>();
 	private sprintPointerIds = new Set<number>();
 	private crouchPointerIds = new Set<number>();
-	private breakPointerIds = new Set<number>();
-	private placePointerIds = new Set<number>();
 	private activePointers = new Map<number, PointerPosition>();
+	private equipPressByPointerId = new Map<number, EquipPressState>();
+	private worldPress: WorldPressState | null = null;
 	private joystickCenter = { x: 0, y: 0 };
 	private joystickRadius = 60;
 	private isListeningOnWindow = false;
@@ -81,10 +114,11 @@ export class TouchInput {
 		this.lookZone = root.querySelector('[data-touch="look"]');
 		this.jumpButton = root.querySelector('[data-touch="jump"]');
 		this.sprintButton = root.querySelector('[data-touch="sprint"]');
-		this.breakButton = root.querySelector('[data-touch="break"]');
-		this.placeButton = root.querySelector('[data-touch="place"]');
 		this.crouchButton = root.querySelector('[data-touch="crouch"]');
-		this.flyButton = root.querySelector('[data-touch="fly"]');
+		this.equipTopButton = root.querySelector('[data-touch="equip-top"]');
+		this.equipLeftButton = root.querySelector('[data-touch="equip-left"]');
+		this.equipRightButton = root.querySelector('[data-touch="equip-right"]');
+		this.equipUtilityButton = root.querySelector('[data-touch="equip-utility"]');
 
 		this.updateJoystickMetrics();
 		root.addEventListener('pointerdown', this.boundPointerDown);
@@ -102,10 +136,11 @@ export class TouchInput {
 		this.lookZone = null;
 		this.jumpButton = null;
 		this.sprintButton = null;
-		this.breakButton = null;
-		this.placeButton = null;
 		this.crouchButton = null;
-		this.flyButton = null;
+		this.equipTopButton = null;
+		this.equipLeftButton = null;
+		this.equipRightButton = null;
+		this.equipUtilityButton = null;
 	}
 
 	dispose(): void {
@@ -116,6 +151,17 @@ export class TouchInput {
 
 	onLayoutChange(): void {
 		this.updateJoystickMetrics();
+	}
+
+	updateInteractionTimers(nowMs: number): void {
+		if (!this.worldPress || this.worldPress.moved || this.worldPress.breakCompleted) {
+			return;
+		}
+
+		if (nowMs - this.worldPress.startMs >= BREAK_HOLD_MS) {
+			this.worldPress.breakCompleted = true;
+			this.primaryActionPressed = true;
+		}
 	}
 
 	consumeLook(): { lookX: number; lookY: number } {
@@ -130,7 +176,14 @@ export class TouchInput {
 		this.jumpPressed = false;
 		this.primaryActionPressed = false;
 		this.secondaryActionPressed = false;
-		this.flyTogglePressed = false;
+		this.cycleTop = false;
+		this.cycleLeftHand = false;
+		this.cycleRightHand = false;
+		this.cycleUtility = false;
+		this.resetTop = false;
+		this.resetLeftHand = false;
+		this.resetRightHand = false;
+		this.resetUtility = false;
 	}
 
 	reset(): void {
@@ -142,20 +195,26 @@ export class TouchInput {
 		this.jumpPressed = false;
 		this.sprint = false;
 		this.crouch = false;
-		this.primaryAction = false;
-		this.secondaryAction = false;
 		this.consumeEdgeActions();
+
+		this.clearEquipPresses();
+		this.worldPress = null;
 
 		this.joystickPointerId = null;
 		this.lookPointerId = null;
 		this.jumpPointerIds.clear();
 		this.sprintPointerIds.clear();
 		this.crouchPointerIds.clear();
-		this.breakPointerIds.clear();
-		this.placePointerIds.clear();
 		this.activePointers.clear();
 		this.resetJoystickVisual();
 		this.stopWindowListeners();
+	}
+
+	private clearEquipPresses(): void {
+		for (const state of this.equipPressByPointerId.values()) {
+			window.clearTimeout(state.timerId);
+		}
+		this.equipPressByPointerId.clear();
 	}
 
 	private updateJoystickMetrics(): void {
@@ -209,24 +268,6 @@ export class TouchInput {
 			return;
 		}
 
-		if (this.breakButton?.contains(target)) {
-			event.preventDefault();
-			this.breakPointerIds.add(event.pointerId);
-			this.primaryAction = true;
-			this.primaryActionPressed = true;
-			this.startWindowListeners();
-			return;
-		}
-
-		if (this.placeButton?.contains(target)) {
-			event.preventDefault();
-			this.placePointerIds.add(event.pointerId);
-			this.secondaryAction = true;
-			this.secondaryActionPressed = true;
-			this.startWindowListeners();
-			return;
-		}
-
 		if (this.crouchButton?.contains(target)) {
 			event.preventDefault();
 			this.crouchPointerIds.add(event.pointerId);
@@ -235,17 +276,18 @@ export class TouchInput {
 			return;
 		}
 
-		if (this.flyButton?.contains(target)) {
-			event.preventDefault();
-			this.flyTogglePressed = true;
-			this.startWindowListeners();
-			return;
-		}
-
 		if (this.sprintButton?.contains(target)) {
 			event.preventDefault();
 			this.sprintPointerIds.add(event.pointerId);
 			this.sprint = true;
+			this.startWindowListeners();
+			return;
+		}
+
+		const equipChannel = this.getEquipChannelForTarget(target);
+		if (equipChannel !== null) {
+			event.preventDefault();
+			this.beginEquipPress(event.pointerId, equipChannel, event.clientX, event.clientY);
 			this.startWindowListeners();
 			return;
 		}
@@ -264,6 +306,14 @@ export class TouchInput {
 			event.preventDefault();
 			this.lookPointerId = event.pointerId;
 			this.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+			this.worldPress = {
+				pointerId: event.pointerId,
+				startX: event.clientX,
+				startY: event.clientY,
+				startMs: performance.now(),
+				moved: false,
+				breakCompleted: false,
+			};
 			this.startWindowListeners();
 		}
 	}
@@ -275,6 +325,16 @@ export class TouchInput {
 			return;
 		}
 
+		const equipPress = this.equipPressByPointerId.get(event.pointerId);
+		if (equipPress && !equipPress.longPressFired) {
+			const dx = event.clientX - equipPress.startX;
+			const dy = event.clientY - equipPress.startY;
+			if (Math.hypot(dx, dy) > TAP_MAX_MOVEMENT_PX) {
+				window.clearTimeout(equipPress.timerId);
+				this.equipPressByPointerId.delete(event.pointerId);
+			}
+		}
+
 		if (event.pointerId === this.lookPointerId) {
 			event.preventDefault();
 			const previous = this.activePointers.get(event.pointerId);
@@ -283,6 +343,14 @@ export class TouchInput {
 				this.lookY += event.clientY - previous.y;
 			}
 			this.activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+			if (this.worldPress?.pointerId === event.pointerId && !this.worldPress.moved) {
+				const dx = event.clientX - this.worldPress.startX;
+				const dy = event.clientY - this.worldPress.startY;
+				if (Math.hypot(dx, dy) > TAP_MAX_MOVEMENT_PX) {
+					this.worldPress.moved = true;
+				}
+			}
 		}
 	}
 
@@ -299,12 +367,12 @@ export class TouchInput {
 			this.crouch = this.crouchPointerIds.size > 0;
 		}
 
-		if (this.breakPointerIds.delete(event.pointerId)) {
-			this.primaryAction = this.breakPointerIds.size > 0;
+		if (this.equipPressByPointerId.has(event.pointerId)) {
+			this.finishEquipPress(event.pointerId);
 		}
 
-		if (this.placePointerIds.delete(event.pointerId)) {
-			this.secondaryAction = this.placePointerIds.size > 0;
+		if (this.worldPress?.pointerId === event.pointerId) {
+			this.finishWorldPress();
 		}
 
 		if (event.pointerId === this.joystickPointerId) {
@@ -326,11 +394,121 @@ export class TouchInput {
 			this.jumpPointerIds.size === 0 &&
 			this.sprintPointerIds.size === 0 &&
 			this.crouchPointerIds.size === 0 &&
-			this.breakPointerIds.size === 0 &&
-			this.placePointerIds.size === 0
+			this.equipPressByPointerId.size === 0
 		) {
 			this.stopWindowListeners();
 		}
+	}
+
+	private getEquipChannelForTarget(target: Node): QuickEquipChannel | null {
+		if (this.equipTopButton?.contains(target)) {
+			return QuickEquipChannel.TOP;
+		}
+		if (this.equipLeftButton?.contains(target)) {
+			return QuickEquipChannel.LEFT_HAND;
+		}
+		if (this.equipRightButton?.contains(target)) {
+			return QuickEquipChannel.RIGHT_HAND;
+		}
+		if (this.equipUtilityButton?.contains(target)) {
+			return QuickEquipChannel.UTILITY;
+		}
+		return null;
+	}
+
+	private beginEquipPress(
+		pointerId: number,
+		channel: QuickEquipChannel,
+		clientX: number,
+		clientY: number,
+	): void {
+		const startMs = performance.now();
+		const timerId = window.setTimeout(() => {
+			const state = this.equipPressByPointerId.get(pointerId);
+			if (!state || state.longPressFired) {
+				return;
+			}
+
+			state.longPressFired = true;
+			this.fireEquipReset(state.channel);
+		}, EQUIP_LONG_PRESS_MS);
+
+		this.equipPressByPointerId.set(pointerId, {
+			channel,
+			startX: clientX,
+			startY: clientY,
+			startMs,
+			longPressFired: false,
+			timerId,
+		});
+	}
+
+	private finishEquipPress(pointerId: number): void {
+		const state = this.equipPressByPointerId.get(pointerId);
+		if (!state) {
+			return;
+		}
+
+		window.clearTimeout(state.timerId);
+		this.equipPressByPointerId.delete(pointerId);
+
+		if (state.longPressFired) {
+			return;
+		}
+
+		this.fireEquipCycle(state.channel);
+	}
+
+	private fireEquipCycle(channel: QuickEquipChannel): void {
+		switch (channel) {
+			case QuickEquipChannel.TOP:
+				this.cycleTop = true;
+				break;
+			case QuickEquipChannel.LEFT_HAND:
+				this.cycleLeftHand = true;
+				break;
+			case QuickEquipChannel.RIGHT_HAND:
+				this.cycleRightHand = true;
+				break;
+			case QuickEquipChannel.UTILITY:
+				this.cycleUtility = true;
+				break;
+		}
+	}
+
+	private fireEquipReset(channel: QuickEquipChannel): void {
+		switch (channel) {
+			case QuickEquipChannel.TOP:
+				this.resetTop = true;
+				break;
+			case QuickEquipChannel.LEFT_HAND:
+				this.resetLeftHand = true;
+				break;
+			case QuickEquipChannel.RIGHT_HAND:
+				this.resetRightHand = true;
+				break;
+			case QuickEquipChannel.UTILITY:
+				this.resetUtility = true;
+				break;
+		}
+	}
+
+	private finishWorldPress(): void {
+		const press = this.worldPress;
+		if (!press) {
+			return;
+		}
+
+		const duration = performance.now() - press.startMs;
+		if (
+			!press.moved &&
+			!press.breakCompleted &&
+			duration <= TAP_MAX_DURATION_MS
+		) {
+			this.secondaryActionPressed = true;
+		}
+
+		this.worldPress = null;
 	}
 
 	private updateJoystick(clientX: number, clientY: number): void {
