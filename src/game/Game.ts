@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { DEBUG_STATS_INTERVAL_MS, MAX_PIXEL_RATIO } from './config/RenderConfig';
+import { QuickEquipManager, type QuickEquipSnapshot } from './equipment/QuickEquipManager';
+import { QuickEquipChannel } from './equipment/QuickEquipChannel';
 import { InputManager } from './input/InputManager';
+import { BlockHighlight } from './interaction/BlockHighlight';
+import { BlockInteraction } from './interaction/BlockInteraction';
+import { raycastVoxels, type VoxelTarget } from './interaction/VoxelRaycast';
 import { PlayerCamera } from './player/PlayerCamera';
 import { PlayerController } from './player/PlayerController';
 import { findSpawnPosition } from './player/PlayerSpawn';
@@ -48,9 +53,15 @@ export interface GameDebugStats {
 	velocityY: number;
 	velocityZ: number;
 	grounded: boolean;
-	movementMode: 'walk' | 'sprint';
+	movementMode: 'walk' | 'sprint' | 'crouch' | 'fly';
 	inputType: InputMode;
+	targetBlockX: number;
+	targetBlockY: number;
+	targetBlockZ: number;
+	targetHit: boolean;
 }
+
+export type { QuickEquipSnapshot };
 
 export class Game {
 	private readonly container: HTMLElement;
@@ -62,6 +73,12 @@ export class Game {
 	private readonly inputManager: InputManager;
 	private readonly playerController: PlayerController;
 	private readonly playerCamera: PlayerCamera;
+	private readonly quickEquip: QuickEquipManager;
+	private readonly blockInteraction: BlockInteraction;
+	private readonly blockHighlight: BlockHighlight;
+	private readonly rayOrigin = new THREE.Vector3();
+	private readonly rayDirection = new THREE.Vector3();
+	private quickEquipCallback: ((snapshot: QuickEquipSnapshot) => void) | null = null;
 	private animationFrameId: number | null = null;
 	private resizeObserver: ResizeObserver | null = null;
 	private visualViewport: VisualViewport | null = null;
@@ -119,6 +136,9 @@ export class Game {
 		const spawn = findSpawnPosition(this.world);
 		this.playerController = new PlayerController(spawn.x, spawn.y, spawn.z);
 		this.playerCamera = new PlayerCamera();
+		this.quickEquip = new QuickEquipManager();
+		this.blockInteraction = new BlockInteraction(this.world, this.worldRenderer, this.quickEquip);
+		this.blockHighlight = new BlockHighlight(this.scene);
 		this.inputManager = new InputManager(this.renderer.domElement);
 
 		const spawnChunkX = Math.floor(spawn.x / CHUNK_SIZE);
@@ -167,6 +187,101 @@ export class Game {
 		this.inputManager.setPointerLockCallback(callback);
 	}
 
+	setQuickEquipCallback(callback: (snapshot: QuickEquipSnapshot) => void): void {
+		this.quickEquipCallback = callback;
+		callback(this.quickEquip.getSnapshot());
+	}
+
+	cycleEquipChannel(channel: QuickEquipChannel): void {
+		this.quickEquip.cycle(channel);
+		if (this.quickEquipCallback) {
+			this.quickEquipCallback(this.quickEquip.getSnapshot());
+		}
+	}
+
+	private handleEquipmentInput(input: ReturnType<InputManager['poll']>): void {
+		if (input.cycleLeftHand) {
+			this.quickEquip.cycle(QuickEquipChannel.LEFT_HAND);
+		}
+		if (input.cycleRightHand) {
+			this.quickEquip.cycle(QuickEquipChannel.RIGHT_HAND);
+		}
+		if (input.cycleTop) {
+			this.quickEquip.cycle(QuickEquipChannel.TOP);
+		}
+		if (input.cycleUtility) {
+			this.quickEquip.cycle(QuickEquipChannel.UTILITY);
+		}
+
+		if (
+			input.cycleLeftHand ||
+			input.cycleRightHand ||
+			input.cycleTop ||
+			input.cycleUtility
+		) {
+			if (this.quickEquipCallback) {
+				this.quickEquipCallback(this.quickEquip.getSnapshot());
+			}
+		}
+	}
+
+	private updateTargeting(player: ReturnType<PlayerController['getState']>): void {
+		this.rayOrigin.set(
+			player.positionX,
+			player.positionY + player.eyeHeight,
+			player.positionZ,
+		);
+		this.playerCamera.getLookDirection(this.rayDirection);
+
+		const target = raycastVoxels(
+			this.world,
+			this.rayOrigin.x,
+			this.rayOrigin.y,
+			this.rayOrigin.z,
+			this.rayDirection.x,
+			this.rayDirection.y,
+			this.rayDirection.z,
+		);
+
+		this.blockHighlight.updateTarget(target.blockX, target.blockY, target.blockZ, target.hit);
+
+		if (target.hit) {
+			this.lastTarget = target;
+		}
+	}
+
+	private lastTarget: VoxelTarget = {
+		hit: false,
+		blockX: 0,
+		blockY: 0,
+		blockZ: 0,
+		placeX: 0,
+		placeY: 0,
+		placeZ: 0,
+		normalX: 0,
+		normalY: 0,
+		normalZ: 0,
+	};
+
+	private handleBlockInteraction(
+		input: ReturnType<InputManager['poll']>,
+		player: ReturnType<PlayerController['getState']>,
+	): void {
+		if (input.primaryActionPressed && this.lastTarget.hit) {
+			this.blockInteraction.tryBreak(this.lastTarget);
+		}
+
+		if (input.secondaryActionPressed && this.lastTarget.hit) {
+			this.blockInteraction.tryPlace(
+				this.lastTarget,
+				player.positionX,
+				player.positionY,
+				player.positionZ,
+				player.playerHeight,
+			);
+		}
+	}
+
 	private getDebugStats(): GameDebugStats {
 		const renderStats = this.worldRenderer.getStats();
 		const activeStats = this.worldRenderer.getActiveStats();
@@ -205,6 +320,10 @@ export class Game {
 			grounded: player.grounded,
 			movementMode: player.movementMode,
 			inputType: this.inputManager.getInputMode(),
+			targetBlockX: this.lastTarget.blockX,
+			targetBlockY: this.lastTarget.blockY,
+			targetBlockZ: this.lastTarget.blockZ,
+			targetHit: this.lastTarget.hit,
 		};
 	}
 
@@ -233,16 +352,28 @@ export class Game {
 		const delta = Math.min(deltaMs / 1000, 0.1);
 
 		const input = this.inputManager.poll();
+		this.handleEquipmentInput(input);
 		this.playerCamera.applyLookInput(input, this.inputManager.getInputMode());
-		this.playerController.update(delta, input, this.world, this.playerCamera.getYaw());
+		this.playerController.update(
+			delta,
+			input,
+			this.world,
+			this.playerCamera.getYaw(),
+			this.playerCamera.getPitch(),
+		);
 
 		const player = this.playerController.getState();
+		this.updateTargeting(player);
+		this.handleBlockInteraction(input, player);
+		this.inputManager.consumeEdgeActions();
+
 		this.playerCamera.update(delta, player);
 		this.playerCamera.updateCamera(
 			this.camera,
 			player.positionX,
 			player.positionY,
 			player.positionZ,
+			player.eyeHeight,
 		);
 
 		const playerChunkX = Math.floor(player.positionX / CHUNK_SIZE);
@@ -302,6 +433,7 @@ export class Game {
 		window.removeEventListener('orientationchange', this.boundVisualViewportChange);
 
 		this.inputManager.dispose();
+		this.blockHighlight.dispose();
 		this.worldRenderer.dispose();
 
 		this.renderer.dispose();

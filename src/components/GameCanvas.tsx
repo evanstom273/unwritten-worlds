@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { DEBUG_HUD_ENABLED } from '../game/config/DebugConfig';
-import { Game, type GameDebugStats } from '../game/Game';
+import { QuickEquipChannel } from '../game/equipment/QuickEquipChannel';
+import { Game, type GameDebugStats, type QuickEquipSnapshot } from '../game/Game';
 import type { InputMode } from '../game/input/InputState';
 import { Crosshair } from './Crosshair';
+import { EquipmentRadial } from './EquipmentRadial';
 import { PointerLockHint } from './PointerLockHint';
+import { QuickEquipHud } from './QuickEquipHud';
 import { RotateDeviceOverlay } from './RotateDeviceOverlay';
 import { TouchControls } from './TouchControls';
 import { usePortraitOrientation } from '../hooks/usePortraitOrientation';
@@ -13,8 +16,10 @@ export function GameCanvas() {
 	const touchRef = useRef<HTMLDivElement>(null);
 	const gameRef = useRef<Game | null>(null);
 	const [stats, setStats] = useState<GameDebugStats | null>(null);
+	const [equipSnapshot, setEquipSnapshot] = useState<QuickEquipSnapshot | null>(null);
 	const [pointerLocked, setPointerLocked] = useState(false);
 	const [inputMode, setInputMode] = useState<InputMode>('keyboard-mouse');
+	const [radialOpen, setRadialOpen] = useState(false);
 	const isPortrait = usePortraitOrientation();
 
 	useEffect(() => {
@@ -28,6 +33,7 @@ export function GameCanvas() {
 		setInputMode(game.getInputMode());
 		game.setStatsCallback(setStats);
 		game.setPointerLockCallback(setPointerLocked);
+		game.setQuickEquipCallback(setEquipSnapshot);
 
 		return () => {
 			game.dispose();
@@ -52,15 +58,40 @@ export function GameCanvas() {
 	const showPointerLockHint = inputMode === 'keyboard-mouse' && !pointerLocked && !isPortrait;
 	const showCrosshair = !isPortrait;
 
+	const handleRadialSelect = (channel: QuickEquipChannel): void => {
+		gameRef.current?.cycleEquipChannel(channel);
+		setRadialOpen(false);
+	};
+
 	return (
 		<>
 			<div ref={containerRef} className="game-canvas" />
 			{showCrosshair && <Crosshair />}
 			{showPointerLockHint && <PointerLockHint />}
+			{equipSnapshot && !isPortrait && (
+				<QuickEquipHud
+					snapshot={equipSnapshot}
+					showRadialHints={inputMode === 'touch'}
+				/>
+			)}
 			{showTouchControls && (
-				<div ref={touchRef}>
-					<TouchControls />
-				</div>
+				<>
+					<button
+						type="button"
+						className="touch-equip-open"
+						onClick={() => setRadialOpen(true)}
+					>
+						Equip
+					</button>
+					<EquipmentRadial
+						open={radialOpen}
+						onSelectChannel={handleRadialSelect}
+						onClose={() => setRadialOpen(false)}
+					/>
+					<div ref={touchRef}>
+						<TouchControls />
+					</div>
+				</>
 			)}
 			{isPortrait && <RotateDeviceOverlay />}
 			{DEBUG_HUD_ENABLED && stats && (
@@ -77,6 +108,14 @@ export function GameCanvas() {
 						<span>Player</span>
 						<span>
 							{stats.playerX.toFixed(1)}, {stats.playerY.toFixed(1)}, {stats.playerZ.toFixed(1)}
+						</span>
+					</div>
+					<div className="debug-row">
+						<span>Target</span>
+						<span>
+							{stats.targetHit
+								? `${stats.targetBlockX}, ${stats.targetBlockY}, ${stats.targetBlockZ}`
+								: '—'}
 						</span>
 					</div>
 					<div className="debug-row">

@@ -14,3 +14,11 @@ export const TOUCH_LOOK_SENSITIVITY = 0.004;
 export const MAX_PITCH = Math.PI / 2 - 0.01;
 
 export const GROUND_PROBE_DISTANCE = 0.08;
+
+export const CROUCH_HEIGHT = 1.5;
+export const CROUCH_EYE_HEIGHT = 1.25;
+export const CROUCH_SPEED = 2.2;
+
+export const FLY_SPEED = 7.5;
+export const FLY_VERTICAL_SPEED = 5.5;
+export const DOUBLE_TAP_JUMP_MS = 350;

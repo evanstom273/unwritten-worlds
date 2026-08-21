@@ -7,9 +7,18 @@ export class KeyboardMouseInput {
 	moveX = 0;
 	moveZ = 0;
 	jump = false;
+	jumpPressed = false;
 	sprint = false;
+	crouch = false;
 	primaryAction = false;
 	secondaryAction = false;
+	primaryActionPressed = false;
+	secondaryActionPressed = false;
+	flyTogglePressed = false;
+	cycleTop = false;
+	cycleLeftHand = false;
+	cycleRightHand = false;
+	cycleUtility = false;
 
 	pointerLocked = false;
 
@@ -18,6 +27,8 @@ export class KeyboardMouseInput {
 	private readonly boundKeyDown: (event: KeyboardEvent) => void;
 	private readonly boundKeyUp: (event: KeyboardEvent) => void;
 	private readonly boundMouseMove: (event: MouseEvent) => void;
+	private readonly boundMouseDown: (event: MouseEvent) => void;
+	private readonly boundMouseUp: (event: MouseEvent) => void;
 	private readonly boundPointerLockChange: () => void;
 	private readonly boundBlur: () => void;
 	private readonly boundVisibilityChange: () => void;
@@ -34,6 +45,12 @@ export class KeyboardMouseInput {
 		};
 		this.boundMouseMove = (event) => {
 			this.onMouseMove(event);
+		};
+		this.boundMouseDown = (event) => {
+			this.onMouseDown(event);
+		};
+		this.boundMouseUp = (event) => {
+			this.onMouseUp(event);
 		};
 		this.boundPointerLockChange = () => {
 			this.onPointerLockChange();
@@ -53,6 +70,8 @@ export class KeyboardMouseInput {
 		window.addEventListener('keydown', this.boundKeyDown);
 		window.addEventListener('keyup', this.boundKeyUp);
 		document.addEventListener('mousemove', this.boundMouseMove);
+		document.addEventListener('mousedown', this.boundMouseDown);
+		document.addEventListener('mouseup', this.boundMouseUp);
 		document.addEventListener('pointerlockchange', this.boundPointerLockChange);
 		window.addEventListener('blur', this.boundBlur);
 		document.addEventListener('visibilitychange', this.boundVisibilityChange);
@@ -68,6 +87,8 @@ export class KeyboardMouseInput {
 		window.removeEventListener('keydown', this.boundKeyDown);
 		window.removeEventListener('keyup', this.boundKeyUp);
 		document.removeEventListener('mousemove', this.boundMouseMove);
+		document.removeEventListener('mousedown', this.boundMouseDown);
+		document.removeEventListener('mouseup', this.boundMouseUp);
 		document.removeEventListener('pointerlockchange', this.boundPointerLockChange);
 		window.removeEventListener('blur', this.boundBlur);
 		document.removeEventListener('visibilitychange', this.boundVisibilityChange);
@@ -92,20 +113,31 @@ export class KeyboardMouseInput {
 		return { lookX, lookY };
 	}
 
+	consumeEdgeActions(): void {
+		this.jumpPressed = false;
+		this.primaryActionPressed = false;
+		this.secondaryActionPressed = false;
+		this.flyTogglePressed = false;
+		this.cycleTop = false;
+		this.cycleLeftHand = false;
+		this.cycleRightHand = false;
+		this.cycleUtility = false;
+	}
+
 	updateMovementFromKeys(): void {
 		let moveX = 0;
 		let moveZ = 0;
 
-		if (this.keysDown.has('KeyW') || this.keysDown.has('ArrowUp')) {
+		if (this.keysDown.has('KeyW')) {
 			moveZ += 1;
 		}
-		if (this.keysDown.has('KeyS') || this.keysDown.has('ArrowDown')) {
+		if (this.keysDown.has('KeyS')) {
 			moveZ -= 1;
 		}
-		if (this.keysDown.has('KeyD') || this.keysDown.has('ArrowRight')) {
+		if (this.keysDown.has('KeyD')) {
 			moveX += 1;
 		}
-		if (this.keysDown.has('KeyA') || this.keysDown.has('ArrowLeft')) {
+		if (this.keysDown.has('KeyA')) {
 			moveX -= 1;
 		}
 
@@ -113,6 +145,7 @@ export class KeyboardMouseInput {
 		this.moveZ = moveZ;
 		this.jump = this.keysDown.has('Space');
 		this.sprint = this.keysDown.has('ShiftLeft') || this.keysDown.has('ShiftRight');
+		this.crouch = this.keysDown.has('ControlLeft') || this.keysDown.has('ControlRight');
 	}
 
 	reset(): void {
@@ -122,16 +155,50 @@ export class KeyboardMouseInput {
 		this.moveX = 0;
 		this.moveZ = 0;
 		this.jump = false;
+		this.jumpPressed = false;
 		this.sprint = false;
+		this.crouch = false;
 		this.primaryAction = false;
 		this.secondaryAction = false;
+		this.consumeEdgeActions();
 	}
 
 	private onKeyDown(event: KeyboardEvent): void {
+		if (event.code === 'KeyF' && !event.repeat) {
+			this.flyTogglePressed = true;
+			event.preventDefault();
+			return;
+		}
+
+		if (event.code === 'ArrowLeft' && !event.repeat) {
+			this.cycleLeftHand = true;
+			event.preventDefault();
+			return;
+		}
+		if (event.code === 'ArrowRight' && !event.repeat) {
+			this.cycleRightHand = true;
+			event.preventDefault();
+			return;
+		}
+		if (event.code === 'ArrowUp' && !event.repeat) {
+			this.cycleTop = true;
+			event.preventDefault();
+			return;
+		}
+		if (event.code === 'ArrowDown' && !event.repeat) {
+			this.cycleUtility = true;
+			event.preventDefault();
+			return;
+		}
+
+		if (event.code === 'Space' && !event.repeat) {
+			this.jumpPressed = true;
+		}
+
 		this.keysDown.add(event.code);
 		this.updateMovementFromKeys();
 
-		if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.code)) {
+		if (['Space', 'ControlLeft', 'ControlRight'].includes(event.code)) {
 			event.preventDefault();
 		}
 	}
@@ -148,6 +215,28 @@ export class KeyboardMouseInput {
 
 		this.lookX += event.movementX;
 		this.lookY += event.movementY;
+	}
+
+	private onMouseDown(event: MouseEvent): void {
+		if (document.pointerLockElement !== this.canvas) {
+			return;
+		}
+
+		if (event.button === 0) {
+			this.primaryAction = true;
+			this.primaryActionPressed = true;
+		} else if (event.button === 2) {
+			this.secondaryAction = true;
+			this.secondaryActionPressed = true;
+		}
+	}
+
+	private onMouseUp(event: MouseEvent): void {
+		if (event.button === 0) {
+			this.primaryAction = false;
+		} else if (event.button === 2) {
+			this.secondaryAction = false;
+		}
 	}
 
 	private onPointerLockChange(): void {
