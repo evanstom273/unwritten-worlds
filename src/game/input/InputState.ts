@@ -20,6 +20,8 @@ export interface InputState {
 	resetLeftHand: boolean;
 	resetRightHand: boolean;
 	resetUtility: boolean;
+	touchActionScreenX: number | null;
+	touchActionScreenY: number | null;
 }
 
 export type InputMode = 'keyboard-mouse' | 'touch';
@@ -47,5 +49,7 @@ export function createEmptyInputState(): InputState {
 		resetLeftHand: false,
 		resetRightHand: false,
 		resetUtility: false,
+		touchActionScreenX: null,
+		touchActionScreenY: null,
 	};
 }

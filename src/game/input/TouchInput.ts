@@ -44,6 +44,8 @@ export class TouchInput {
 	crouch = false;
 	primaryActionPressed = false;
 	secondaryActionPressed = false;
+	touchActionScreenX: number | null = null;
+	touchActionScreenY: number | null = null;
 
 	cycleTop = false;
 	cycleLeftHand = false;
@@ -160,6 +162,8 @@ export class TouchInput {
 
 		if (nowMs - this.worldPress.startMs >= BREAK_HOLD_MS) {
 			this.worldPress.breakCompleted = true;
+			this.touchActionScreenX = this.worldPress.startX;
+			this.touchActionScreenY = this.worldPress.startY;
 			this.primaryActionPressed = true;
 		}
 	}
@@ -176,6 +180,8 @@ export class TouchInput {
 		this.jumpPressed = false;
 		this.primaryActionPressed = false;
 		this.secondaryActionPressed = false;
+		this.touchActionScreenX = null;
+		this.touchActionScreenY = null;
 		this.cycleTop = false;
 		this.cycleLeftHand = false;
 		this.cycleRightHand = false;
@@ -505,6 +511,8 @@ export class TouchInput {
 			!press.breakCompleted &&
 			duration <= TAP_MAX_DURATION_MS
 		) {
+			this.touchActionScreenX = press.startX;
+			this.touchActionScreenY = press.startY;
 			this.secondaryActionPressed = true;
 		}
 
