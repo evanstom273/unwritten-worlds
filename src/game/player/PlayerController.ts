@@ -58,7 +58,7 @@ export class PlayerController {
 		this.positionZ = spawnZ;
 	}
 
-	update(delta: number, input: InputState, world: World, yaw: number, pitch: number): void {
+	update(delta: number, input: InputState, world: World, yaw: number): void {
 		const wasGrounded = this.grounded;
 		this.landingImpact = 0;
 
@@ -77,7 +77,7 @@ export class PlayerController {
 		const playerHeight = this.crouching ? CROUCH_HEIGHT : PLAYER_HEIGHT;
 
 		if (this.flying) {
-			this.updateFlying(input, yaw, pitch);
+			this.updateFlying(input, yaw);
 		} else {
 			this.updateGrounded(delta, input, yaw);
 		}
@@ -153,38 +153,17 @@ export class PlayerController {
 		}
 	}
 
-	private updateFlying(input: InputState, yaw: number, pitch: number): void {
+	private updateFlying(input: InputState, yaw: number): void {
 		this.movementMode = 'fly';
-
-		let moveX = input.moveX;
-		let moveZ = input.moveZ;
-		const moveLength = Math.hypot(moveX, moveZ);
-		if (moveLength > 1) {
-			moveX /= moveLength;
-			moveZ /= moveLength;
-		}
-
-		const forwardX = -Math.sin(yaw) * Math.cos(pitch);
-		const forwardY = -Math.sin(pitch);
-		const forwardZ = -Math.cos(yaw) * Math.cos(pitch);
-		const rightX = Math.cos(yaw);
-		const rightZ = -Math.sin(yaw);
-
-		const wishX = forwardX * moveZ + rightX * moveX;
-		const wishY = forwardY * moveZ;
-		const wishZ = forwardZ * moveZ + rightZ * moveX;
-
-		this.velocityX = wishX * FLY_SPEED;
-		this.velocityY = wishY * FLY_SPEED;
-		this.velocityZ = wishZ * FLY_SPEED;
+		this.applyPlanarMovement(input, yaw, FLY_SPEED);
 
 		if (input.jump) {
 			this.velocityY = FLY_VERTICAL_SPEED;
 		} else if (input.crouch) {
 			this.velocityY = -FLY_VERTICAL_SPEED;
+		} else {
+			this.velocityY = 0;
 		}
-
-		this.horizontalSpeed = Math.hypot(this.velocityX, this.velocityZ);
 	}
 
 	private applyPlanarMovement(input: InputState, yaw: number, speed: number): void {

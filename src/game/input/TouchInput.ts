@@ -19,6 +19,7 @@ interface EquipPressState {
 	startY: number;
 	startMs: number;
 	longPressFired: boolean;
+	moved: boolean;
 	timerId: number;
 }
 
@@ -62,10 +63,6 @@ export class TouchInput {
 	private jumpButton: HTMLElement | null = null;
 	private sprintButton: HTMLElement | null = null;
 	private crouchButton: HTMLElement | null = null;
-	private equipTopButton: HTMLElement | null = null;
-	private equipLeftButton: HTMLElement | null = null;
-	private equipRightButton: HTMLElement | null = null;
-	private equipUtilityButton: HTMLElement | null = null;
 
 	private joystickPointerId: number | null = null;
 	private lookPointerId: number | null = null;
@@ -117,10 +114,6 @@ export class TouchInput {
 		this.jumpButton = root.querySelector('[data-touch="jump"]');
 		this.sprintButton = root.querySelector('[data-touch="sprint"]');
 		this.crouchButton = root.querySelector('[data-touch="crouch"]');
-		this.equipTopButton = root.querySelector('[data-touch="equip-top"]');
-		this.equipLeftButton = root.querySelector('[data-touch="equip-left"]');
-		this.equipRightButton = root.querySelector('[data-touch="equip-right"]');
-		this.equipUtilityButton = root.querySelector('[data-touch="equip-utility"]');
 
 		this.updateJoystickMetrics();
 		root.addEventListener('pointerdown', this.boundPointerDown);
@@ -139,10 +132,6 @@ export class TouchInput {
 		this.jumpButton = null;
 		this.sprintButton = null;
 		this.crouchButton = null;
-		this.equipTopButton = null;
-		this.equipLeftButton = null;
-		this.equipRightButton = null;
-		this.equipUtilityButton = null;
 	}
 
 	dispose(): void {
@@ -259,7 +248,13 @@ export class TouchInput {
 	}
 
 	private onPointerDown(event: PointerEvent): void {
-		if (!this.root || event.pointerType === 'mouse') {
+		if (!this.root) {
+			return;
+		}
+
+		const isTouchPointer =
+			event.pointerType === 'touch' || event.pointerType === 'pen';
+		if (!isTouchPointer) {
 			return;
 		}
 
@@ -336,8 +331,8 @@ export class TouchInput {
 			const dx = event.clientX - equipPress.startX;
 			const dy = event.clientY - equipPress.startY;
 			if (Math.hypot(dx, dy) > TAP_MAX_MOVEMENT_PX) {
+				equipPress.moved = true;
 				window.clearTimeout(equipPress.timerId);
-				this.equipPressByPointerId.delete(event.pointerId);
 			}
 		}
 
@@ -407,19 +402,27 @@ export class TouchInput {
 	}
 
 	private getEquipChannelForTarget(target: Node): QuickEquipChannel | null {
-		if (this.equipTopButton?.contains(target)) {
-			return QuickEquipChannel.TOP;
+		if (!(target instanceof Element)) {
+			return null;
 		}
-		if (this.equipLeftButton?.contains(target)) {
-			return QuickEquipChannel.LEFT_HAND;
+
+		const touchTarget = target.closest('[data-touch]');
+		if (!touchTarget) {
+			return null;
 		}
-		if (this.equipRightButton?.contains(target)) {
-			return QuickEquipChannel.RIGHT_HAND;
+
+		switch (touchTarget.getAttribute('data-touch')) {
+			case 'equip-top':
+				return QuickEquipChannel.TOP;
+			case 'equip-left':
+				return QuickEquipChannel.LEFT_HAND;
+			case 'equip-right':
+				return QuickEquipChannel.RIGHT_HAND;
+			case 'equip-utility':
+				return QuickEquipChannel.UTILITY;
+			default:
+				return null;
 		}
-		if (this.equipUtilityButton?.contains(target)) {
-			return QuickEquipChannel.UTILITY;
-		}
-		return null;
 	}
 
 	private beginEquipPress(
@@ -431,7 +434,7 @@ export class TouchInput {
 		const startMs = performance.now();
 		const timerId = window.setTimeout(() => {
 			const state = this.equipPressByPointerId.get(pointerId);
-			if (!state || state.longPressFired) {
+			if (!state || state.longPressFired || state.moved) {
 				return;
 			}
 
@@ -445,6 +448,7 @@ export class TouchInput {
 			startY: clientY,
 			startMs,
 			longPressFired: false,
+			moved: false,
 			timerId,
 		});
 	}

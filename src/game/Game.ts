@@ -426,7 +426,6 @@ export class Game {
 			input,
 			this.world,
 			this.playerCamera.getYaw(),
-			this.playerCamera.getPitch(),
 		);
 
 		const player = this.playerController.getState();
