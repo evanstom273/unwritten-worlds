@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DEBUG_STATS_INTERVAL_MS, MAX_PIXEL_RATIO } from './config/RenderConfig';
 import { InputManager } from './input/InputManager';
 import { PlayerCamera } from './player/PlayerCamera';
 import { PlayerController } from './player/PlayerController';
@@ -25,10 +26,15 @@ export interface GameDebugStats {
 	sectionSize: number;
 	chunkColumnCount: number;
 	allocatedSectionCount: number;
-	renderedMeshCount: number;
+	builtMeshCount: number;
+	activeMeshCount: number;
 	visibleFaceCount: number;
 	triangleCount: number;
+	drawCalls: number;
+	renderDistance: number;
+	pixelRatio: number;
 	fps: number;
+	frameTimeMs: number;
 	playerX: number;
 	playerY: number;
 	playerZ: number;
@@ -60,6 +66,8 @@ export class Game {
 
 	private lastFrameTime = performance.now();
 	private fps = 0;
+	private frameTimeMs = 0;
+	private lastDrawCalls = 0;
 	private frameCount = 0;
 	private fpsAccumulator = 0;
 
@@ -74,7 +82,7 @@ export class Game {
 		};
 
 		this.renderer = new THREE.WebGLRenderer({ antialias: true });
-		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
 		this.renderer.domElement.style.touchAction = 'none';
 		this.container.appendChild(this.renderer.domElement);
 
@@ -97,12 +105,15 @@ export class Game {
 
 		this.world = new World();
 		this.worldRenderer = new WorldRenderer(this.scene, this.world);
-		this.worldRenderer.buildAllMeshes();
 
 		const spawn = findSpawnPosition(this.world);
 		this.playerController = new PlayerController(spawn.x, spawn.y, spawn.z);
 		this.playerCamera = new PlayerCamera();
 		this.inputManager = new InputManager(this.renderer.domElement);
+
+		const spawnChunkX = Math.floor(spawn.x / CHUNK_SIZE);
+		const spawnChunkZ = Math.floor(spawn.z / CHUNK_SIZE);
+		this.worldRenderer.initialize(spawnChunkX, spawnChunkZ);
 
 		this.handleResize();
 		this.resizeObserver = new ResizeObserver(() => {
@@ -148,6 +159,7 @@ export class Game {
 
 	private getDebugStats(): GameDebugStats {
 		const renderStats = this.worldRenderer.getStats();
+		const activeStats = this.worldRenderer.getActiveStats();
 		const player = this.playerController.getState();
 
 		return {
@@ -159,10 +171,15 @@ export class Game {
 			sectionSize: SECTION_SIZE,
 			chunkColumnCount: CHUNK_COLUMN_COUNT,
 			allocatedSectionCount: this.world.getAllocatedSectionCount(),
-			renderedMeshCount: renderStats.meshCount,
-			visibleFaceCount: renderStats.faceCount,
-			triangleCount: renderStats.triangleCount,
+			builtMeshCount: renderStats.builtMeshCount,
+			activeMeshCount: renderStats.activeMeshCount,
+			visibleFaceCount: activeStats.faceCount,
+			triangleCount: activeStats.triangleCount,
+			drawCalls: this.lastDrawCalls,
+			renderDistance: renderStats.renderDistance,
+			pixelRatio: this.renderer.getPixelRatio(),
 			fps: this.fps,
+			frameTimeMs: this.frameTimeMs,
 			playerX: player.positionX,
 			playerY: player.positionY,
 			playerZ: player.positionZ,
@@ -190,6 +207,7 @@ export class Game {
 		this.camera.aspect = width / height;
 		this.camera.updateProjectionMatrix();
 		this.renderer.setSize(width, height);
+		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
 	}
 
 	private animate = (): void => {
@@ -198,6 +216,7 @@ export class Game {
 		const now = performance.now();
 		const deltaMs = now - this.lastFrameTime;
 		this.lastFrameTime = now;
+		this.frameTimeMs = deltaMs;
 		const delta = Math.min(deltaMs / 1000, 0.1);
 
 		const input = this.inputManager.poll();
@@ -205,6 +224,7 @@ export class Game {
 		this.playerController.update(delta, input, this.world, this.playerCamera.getYaw());
 
 		const player = this.playerController.getState();
+		this.playerCamera.update(delta, player);
 		this.playerCamera.updateCamera(
 			this.camera,
 			player.positionX,
@@ -212,9 +232,13 @@ export class Game {
 			player.positionZ,
 		);
 
+		const playerChunkX = Math.floor(player.positionX / CHUNK_SIZE);
+		const playerChunkZ = Math.floor(player.positionZ / CHUNK_SIZE);
+		this.worldRenderer.update(playerChunkX, playerChunkZ);
+
 		this.frameCount++;
 		this.fpsAccumulator += deltaMs;
-		if (this.fpsAccumulator >= 500) {
+		if (this.fpsAccumulator >= DEBUG_STATS_INTERVAL_MS) {
 			this.fps = Math.round((this.frameCount * 1000) / this.fpsAccumulator);
 			this.frameCount = 0;
 			this.fpsAccumulator = 0;
@@ -225,6 +249,7 @@ export class Game {
 		}
 
 		this.renderer.render(this.scene, this.camera);
+		this.lastDrawCalls = this.renderer.info.render.calls;
 	};
 
 	private start(): void {

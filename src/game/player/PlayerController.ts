@@ -6,6 +6,7 @@ import {
 	SPRINT_SPEED,
 	WALK_SPEED,
 } from '../config/PlayerConfig';
+import { LANDING_MIN_VELOCITY } from '../config/RenderConfig';
 import type { InputState } from '../input/InputState';
 import { resolveMovement } from './PlayerCollision';
 
@@ -17,7 +18,10 @@ export interface PlayerState {
 	velocityY: number;
 	velocityZ: number;
 	grounded: boolean;
+	airborne: boolean;
 	movementMode: 'walk' | 'sprint';
+	horizontalSpeed: number;
+	landingImpact: number;
 }
 
 export class PlayerController {
@@ -29,6 +33,9 @@ export class PlayerController {
 	private velocityZ = 0;
 	private grounded = false;
 	private movementMode: 'walk' | 'sprint' = 'walk';
+	private horizontalSpeed = 0;
+	private landingImpact = 0;
+	private previousVelocityY = 0;
 
 	constructor(spawnX: number, spawnY: number, spawnZ: number) {
 		this.positionX = spawnX;
@@ -37,6 +44,9 @@ export class PlayerController {
 	}
 
 	update(delta: number, input: InputState, world: World, yaw: number): void {
+		const wasGrounded = this.grounded;
+		this.landingImpact = 0;
+
 		this.movementMode = input.sprint ? 'sprint' : 'walk';
 		const speed = input.sprint ? SPRINT_SPEED : WALK_SPEED;
 
@@ -58,6 +68,7 @@ export class PlayerController {
 
 		this.velocityX = wishX * speed;
 		this.velocityZ = wishZ * speed;
+		this.horizontalSpeed = Math.hypot(this.velocityX, this.velocityZ);
 
 		if (this.grounded) {
 			if (input.jump) {
@@ -72,6 +83,8 @@ export class PlayerController {
 				this.velocityY = -MAX_FALL_VELOCITY;
 			}
 		}
+
+		this.previousVelocityY = this.velocityY;
 
 		const result = resolveMovement(
 			world,
@@ -91,6 +104,10 @@ export class PlayerController {
 		this.velocityY = result.velocityY;
 		this.velocityZ = result.velocityZ;
 		this.grounded = result.grounded;
+
+		if (!wasGrounded && this.grounded && this.previousVelocityY < -LANDING_MIN_VELOCITY) {
+			this.landingImpact = Math.abs(this.previousVelocityY);
+		}
 	}
 
 	getState(): PlayerState {
@@ -102,7 +119,10 @@ export class PlayerController {
 			velocityY: this.velocityY,
 			velocityZ: this.velocityZ,
 			grounded: this.grounded,
+			airborne: !this.grounded,
 			movementMode: this.movementMode,
+			horizontalSpeed: this.horizontalSpeed,
+			landingImpact: this.landingImpact,
 		};
 	}
 }

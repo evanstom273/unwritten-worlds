@@ -66,10 +66,12 @@ export function GameCanvas() {
 			{DEBUG_HUD_ENABLED && stats && (
 				<aside className="debug-overlay">
 					<div className="debug-row">
-						<span>World</span>
-						<span>
-							{stats.worldWidth} × {stats.worldDepth} (Y {stats.worldMinY}–{stats.worldMaxY})
-						</span>
+						<span>FPS</span>
+						<span>{stats.fps}</span>
+					</div>
+					<div className="debug-row">
+						<span>Frame</span>
+						<span>{stats.frameTimeMs.toFixed(1)} ms</span>
 					</div>
 					<div className="debug-row">
 						<span>Player</span>
@@ -80,10 +82,6 @@ export function GameCanvas() {
 					<div className="debug-row">
 						<span>Chunk</span>
 						<span>{stats.chunkX}, {stats.chunkZ}</span>
-					</div>
-					<div className="debug-row">
-						<span>Section Y</span>
-						<span>{stats.sectionY}</span>
 					</div>
 					<div className="debug-row">
 						<span>Velocity</span>
@@ -104,36 +102,36 @@ export function GameCanvas() {
 						<span>{stats.inputType}</span>
 					</div>
 					<div className="debug-row">
-						<span>Chunk size</span>
-						<span>{stats.chunkSize} × {stats.chunkSize}</span>
+						<span>Active chunks</span>
+						<span>{stats.activeMeshCount}</span>
 					</div>
 					<div className="debug-row">
-						<span>Section size</span>
-						<span>{stats.sectionSize}³</span>
+						<span>Built meshes</span>
+						<span>{stats.builtMeshCount}</span>
 					</div>
 					<div className="debug-row">
-						<span>Chunk columns</span>
-						<span>{stats.chunkColumnCount}</span>
-					</div>
-					<div className="debug-row">
-						<span>Allocated sections</span>
-						<span>{stats.allocatedSectionCount}</span>
-					</div>
-					<div className="debug-row">
-						<span>Rendered meshes</span>
-						<span>{stats.renderedMeshCount}</span>
-					</div>
-					<div className="debug-row">
-						<span>Visible faces</span>
-						<span>{stats.visibleFaceCount.toLocaleString()}</span>
+						<span>Draw calls</span>
+						<span>{stats.drawCalls}</span>
 					</div>
 					<div className="debug-row">
 						<span>Triangles</span>
 						<span>{stats.triangleCount.toLocaleString()}</span>
 					</div>
 					<div className="debug-row">
-						<span>FPS</span>
-						<span>{stats.fps}</span>
+						<span>Faces</span>
+						<span>{stats.visibleFaceCount.toLocaleString()}</span>
+					</div>
+					<div className="debug-row">
+						<span>Sections</span>
+						<span>{stats.allocatedSectionCount}</span>
+					</div>
+					<div className="debug-row">
+						<span>Render dist</span>
+						<span>{stats.renderDistance} chunks</span>
+					</div>
+					<div className="debug-row">
+						<span>Pixel ratio</span>
+						<span>{stats.pixelRatio.toFixed(2)}</span>
 					</div>
 				</aside>
 			)}
