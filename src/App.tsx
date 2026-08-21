@@ -6,7 +6,7 @@ export function App() {
 			<GameCanvas />
 			<header className="overlay">
 				<h1>Unwritten Worlds</h1>
-				<p>Voxel World Prototype</p>
+				<p>First-Person Prototype</p>
 			</header>
 		</div>
 	);

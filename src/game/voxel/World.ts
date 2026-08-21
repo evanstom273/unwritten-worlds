@@ -1,4 +1,4 @@
-import { BlockId } from './BlockId';
+import { BlockId, isOpaqueBlock } from './BlockId';
 import { ChunkColumn } from './ChunkColumn';
 import {
 	CHUNK_SIZE,
@@ -67,6 +67,34 @@ export class World {
 			worldY >= WORLD_MIN_Y &&
 			worldY <= WORLD_MAX_Y
 		);
+	}
+
+	isBlockSolid(blockX: number, blockY: number, blockZ: number): boolean {
+		if (
+			blockX < 0 ||
+			blockX >= WORLD_WIDTH ||
+			blockZ < 0 ||
+			blockZ >= WORLD_DEPTH ||
+			blockY < WORLD_MIN_Y ||
+			blockY > WORLD_MAX_Y
+		) {
+			return true;
+		}
+
+		return isOpaqueBlock(this.getBlock(blockX, blockY, blockZ));
+	}
+
+	findHighestSolidBlock(worldX: number, worldZ: number): number | null {
+		const blockX = Math.floor(worldX);
+		const blockZ = Math.floor(worldZ);
+
+		for (let y = WORLD_MAX_Y; y >= WORLD_MIN_Y; y--) {
+			if (isOpaqueBlock(this.getBlock(blockX, y, blockZ))) {
+				return y;
+			}
+		}
+
+		return null;
 	}
 
 	private generateFlatTerrain(): void {
