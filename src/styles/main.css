@@ -184,11 +184,15 @@ body,
 	min-height: clamp(34px, 7vmin, 48px);
 	padding: 0;
 	pointer-events: auto;
-	touch-action: none;
+	touch-action: manipulation;
 	border: 1px solid rgba(255, 255, 255, 0.22);
 	border-radius: 8px;
 	background: rgba(0, 0, 0, 0.4);
 	cursor: pointer;
+}
+
+.touch-equip-slot .equip-slot-icon {
+	pointer-events: none;
 }
 
 .touch-equip-slot:active {

@@ -53,6 +53,8 @@ export class InputManager {
 			this.state.crouch = this.touch.crouch;
 			this.state.primaryActionPressed = this.touch.primaryActionPressed;
 			this.state.secondaryActionPressed = this.touch.secondaryActionPressed;
+			this.state.touchActionScreenX = this.touch.touchActionScreenX;
+			this.state.touchActionScreenY = this.touch.touchActionScreenY;
 			this.state.cycleTop = this.touch.cycleTop;
 			this.state.cycleLeftHand = this.touch.cycleLeftHand;
 			this.state.cycleRightHand = this.touch.cycleRightHand;
@@ -84,6 +86,8 @@ export class InputManager {
 			const mouseLook = this.keyboardMouse.consumeLook();
 			this.state.lookX = this.keyboardMouse.pointerLocked ? mouseLook.lookX : 0;
 			this.state.lookY = this.keyboardMouse.pointerLocked ? mouseLook.lookY : 0;
+			this.state.touchActionScreenX = null;
+			this.state.touchActionScreenY = null;
 		}
 
 		return this.state;

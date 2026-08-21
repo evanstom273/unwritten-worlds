@@ -24,7 +24,7 @@ export function EquipSlotIcon({ entry, pulsing = false, compact = false }: Equip
 		<span
 			className={`equip-slot-icon${isEmpty ? ' equip-slot-icon-empty' : ''}${iconClass ? ` ${iconClass}` : ''}${pulsing ? ' equip-slot-icon-pulse' : ''}${compact ? ' equip-slot-icon-compact' : ''}`}
 			title={isEmpty ? 'Empty' : entry.displayName}
-			aria-label={isEmpty ? 'Empty' : entry.displayName}
+			aria-hidden="true"
 		>
 			{isEmpty ? '·' : entry.displayName.charAt(0)}
 		</span>

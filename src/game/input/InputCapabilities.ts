@@ -2,9 +2,10 @@ import type { InputMode } from './InputState';
 
 export function detectPrimaryInputMode(): InputMode {
 	const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
-	const finePointer = window.matchMedia('(pointer: fine)').matches;
+	const hoverNone = window.matchMedia('(hover: none)').matches;
+	const hasTouch = navigator.maxTouchPoints > 0;
 
-	if (coarsePointer && !finePointer) {
+	if (coarsePointer || (hasTouch && hoverNone)) {
 		return 'touch';
 	}
 

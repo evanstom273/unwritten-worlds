@@ -6,6 +6,7 @@ import { InputManager } from './input/InputManager';
 import { BlockHighlight } from './interaction/BlockHighlight';
 import { BlockInteraction } from './interaction/BlockInteraction';
 import { BlockPlacementHighlight } from './interaction/BlockPlacementHighlight';
+import { raycastVoxelsFromScreen } from './interaction/ScreenVoxelRaycast';
 import { raycastVoxels, type VoxelTarget } from './interaction/VoxelRaycast';
 import { PlayerCamera } from './player/PlayerCamera';
 import { PlayerController } from './player/PlayerController';
@@ -306,17 +307,36 @@ export class Game {
 		input: ReturnType<InputManager['poll']>,
 		player: ReturnType<PlayerController['getState']>,
 	): void {
-		if (!this.lastTarget.hit) {
+		const isTouch = this.inputManager.getInputMode() === 'touch';
+		const screenX = input.touchActionScreenX;
+		const screenY = input.touchActionScreenY;
+		const usesScreenRay =
+			isTouch &&
+			screenX !== null &&
+			screenY !== null &&
+			(input.primaryActionPressed || input.secondaryActionPressed);
+
+		const target = usesScreenRay
+			? raycastVoxelsFromScreen(
+				this.world,
+				this.camera,
+				this.renderer.domElement,
+				screenX,
+				screenY,
+			)
+			: this.lastTarget;
+
+		if (!target.hit) {
 			return;
 		}
 
 		if (input.primaryActionPressed) {
-			this.blockInteraction.tryBreak(this.lastTarget);
+			this.blockInteraction.tryBreak(target);
 		}
 
 		if (input.secondaryActionPressed) {
 			this.blockInteraction.tryPlace(
-				this.lastTarget,
+				target,
 				player.positionX,
 				player.positionY,
 				player.positionZ,
@@ -406,7 +426,6 @@ export class Game {
 			input,
 			this.world,
 			this.playerCamera.getYaw(),
-			this.playerCamera.getPitch(),
 		);
 
 		const player = this.playerController.getState();
