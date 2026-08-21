@@ -265,32 +265,25 @@ export class Game {
 	}
 
 	private updateTargeting(player: ReturnType<PlayerController['getState']>): void {
-		this.rayOrigin.set(
-			player.positionX,
-			player.positionY + player.eyeHeight,
-			player.positionZ,
-		);
-		this.playerCamera.getLookDirection(this.rayDirection);
+		const crosshairTarget = this.raycastFromCrosshair(player);
 
-		const target = raycastVoxels(
-			this.world,
-			this.rayOrigin.x,
-			this.rayOrigin.y,
-			this.rayOrigin.z,
-			this.rayDirection.x,
-			this.rayDirection.y,
-			this.rayDirection.z,
-		);
+		if (this.pinnedScreenX !== null && this.pinnedScreenY !== null) {
+			const pinnedTarget = raycastVoxelsFromScreen(
+				this.world,
+				this.camera,
+				this.renderer.domElement,
+				this.pinnedScreenX,
+				this.pinnedScreenY,
+			);
+			this.applyTargetSelection(pinnedTarget);
 
-		this.blockHighlight.updateTarget(target.blockX, target.blockY, target.blockZ, target.hit);
-		this.blockPlacementHighlight.updatePlacement(
-			target.placeX,
-			target.placeY,
-			target.placeZ,
-			target.hit,
-		);
+			if (this.targetsSameBlock(crosshairTarget, pinnedTarget)) {
+				this.clearPinnedSelection();
+			}
+			return;
+		}
 
-		this.lastTarget = target;
+		this.applyTargetSelection(crosshairTarget);
 	}
 
 	private lastTarget: VoxelTarget = {
@@ -309,6 +302,68 @@ export class Game {
 		placeY: 0,
 		placeZ: 0,
 	};
+
+	private pinnedScreenX: number | null = null;
+	private pinnedScreenY: number | null = null;
+
+	private applyTargetSelection(target: VoxelTarget): void {
+		this.lastTarget = target;
+		this.blockHighlight.updateTarget(target.blockX, target.blockY, target.blockZ, target.hit);
+		this.blockPlacementHighlight.updatePlacement(
+			target.placeX,
+			target.placeY,
+			target.placeZ,
+			target.hit,
+		);
+	}
+
+	private clearPinnedSelection(): void {
+		this.pinnedScreenX = null;
+		this.pinnedScreenY = null;
+	}
+
+	private raycastFromCrosshair(player: ReturnType<PlayerController['getState']>): VoxelTarget {
+		this.rayOrigin.set(
+			player.positionX,
+			player.positionY + player.eyeHeight,
+			player.positionZ,
+		);
+		this.playerCamera.getLookDirection(this.rayDirection);
+
+		return raycastVoxels(
+			this.world,
+			this.rayOrigin.x,
+			this.rayOrigin.y,
+			this.rayOrigin.z,
+			this.rayDirection.x,
+			this.rayDirection.y,
+			this.rayDirection.z,
+		);
+	}
+
+	private pinSelectionFromScreen(screenX: number, screenY: number): void {
+		this.pinnedScreenX = screenX;
+		this.pinnedScreenY = screenY;
+
+		const target = raycastVoxelsFromScreen(
+			this.world,
+			this.camera,
+			this.renderer.domElement,
+			screenX,
+			screenY,
+		);
+		this.applyTargetSelection(target);
+	}
+
+	private targetsSameBlock(a: VoxelTarget, b: VoxelTarget): boolean {
+		return (
+			a.hit &&
+			b.hit &&
+			a.blockX === b.blockX &&
+			a.blockY === b.blockY &&
+			a.blockZ === b.blockZ
+		);
+	}
 
 	private handleBlockInteraction(
 		input: ReturnType<InputManager['poll']>,
@@ -337,18 +392,25 @@ export class Game {
 			return;
 		}
 
+		let acted = false;
+
 		if (input.primaryActionPressed) {
-			this.blockInteraction.tryBreak(target);
+			acted = this.blockInteraction.tryBreak(target) || acted;
 		}
 
 		if (input.secondaryActionPressed) {
-			this.blockInteraction.tryPlace(
-				target,
-				player.positionX,
-				player.positionY,
-				player.positionZ,
-				player.playerHeight,
-			);
+			acted =
+				this.blockInteraction.tryPlace(
+					target,
+					player.positionX,
+					player.positionY,
+					player.positionZ,
+					player.playerHeight,
+				) || acted;
+		}
+
+		if (acted && usesScreenRay && screenX !== null && screenY !== null) {
+			this.pinSelectionFromScreen(screenX, screenY);
 		}
 	}
 
