@@ -66,8 +66,8 @@ export function GameCanvas() {
 			{DEBUG_HUD_ENABLED && stats && (
 				<aside className="debug-overlay">
 					<div className="debug-row">
-						<span>FPS</span>
-						<span>{stats.fps}</span>
+						<span>FPS min/avg/max</span>
+						<span>{stats.fpsMin} / {stats.fpsAvg} / {stats.fpsMax}</span>
 					</div>
 					<div className="debug-row">
 						<span>Frame</span>

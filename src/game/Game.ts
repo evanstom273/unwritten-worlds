@@ -34,6 +34,9 @@ export interface GameDebugStats {
 	renderDistance: number;
 	pixelRatio: number;
 	fps: number;
+	fpsMin: number;
+	fpsMax: number;
+	fpsAvg: number;
 	frameTimeMs: number;
 	playerX: number;
 	playerY: number;
@@ -66,10 +69,17 @@ export class Game {
 
 	private lastFrameTime = performance.now();
 	private fps = 0;
+	private fpsMin = 0;
+	private fpsMax = 0;
+	private fpsAvg = 0;
 	private frameTimeMs = 0;
 	private lastDrawCalls = 0;
 	private frameCount = 0;
 	private fpsAccumulator = 0;
+	private fpsSampleMin = Number.POSITIVE_INFINITY;
+	private fpsSampleMax = 0;
+	private fpsSampleSum = 0;
+	private fpsSampleCount = 0;
 
 	private readonly boundVisualViewportChange: () => void;
 
@@ -179,6 +189,9 @@ export class Game {
 			renderDistance: renderStats.renderDistance,
 			pixelRatio: this.renderer.getPixelRatio(),
 			fps: this.fps,
+			fpsMin: this.fpsMin,
+			fpsMax: this.fpsMax,
+			fpsAvg: this.fpsAvg,
 			frameTimeMs: this.frameTimeMs,
 			playerX: player.positionX,
 			playerY: player.positionY,
@@ -238,10 +251,26 @@ export class Game {
 
 		this.frameCount++;
 		this.fpsAccumulator += deltaMs;
+
+		const instantFps = deltaMs > 0 ? 1000 / deltaMs : 0;
+		this.fpsSampleMin = Math.min(this.fpsSampleMin, instantFps);
+		this.fpsSampleMax = Math.max(this.fpsSampleMax, instantFps);
+		this.fpsSampleSum += instantFps;
+		this.fpsSampleCount++;
+
 		if (this.fpsAccumulator >= DEBUG_STATS_INTERVAL_MS) {
 			this.fps = Math.round((this.frameCount * 1000) / this.fpsAccumulator);
+			this.fpsMin = this.fpsSampleCount > 0 ? Math.round(this.fpsSampleMin) : this.fps;
+			this.fpsMax = this.fpsSampleCount > 0 ? Math.round(this.fpsSampleMax) : this.fps;
+			this.fpsAvg = this.fpsSampleCount > 0
+				? Math.round(this.fpsSampleSum / this.fpsSampleCount)
+				: this.fps;
 			this.frameCount = 0;
 			this.fpsAccumulator = 0;
+			this.fpsSampleMin = Number.POSITIVE_INFINITY;
+			this.fpsSampleMax = 0;
+			this.fpsSampleSum = 0;
+			this.fpsSampleCount = 0;
 
 			if (this.statsCallback) {
 				this.statsCallback(this.getDebugStats());
