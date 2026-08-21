@@ -137,7 +137,6 @@ export class Game {
 			}
 		}
 
-		this.orbitCamera.update();
 		this.renderer.render(this.scene, this.camera);
 	};
 
