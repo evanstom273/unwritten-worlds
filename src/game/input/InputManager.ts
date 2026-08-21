@@ -1,6 +1,7 @@
 import { detectPrimaryInputMode } from './InputCapabilities';
 import { KeyboardMouseInput } from './KeyboardMouseInput';
 import { createEmptyInputState, type InputMode, type InputState } from './InputState';
+import type { TouchEquipCallbacks } from './TouchEquipCallbacks';
 import { TouchInput } from './TouchInput';
 
 export class InputManager {
@@ -27,8 +28,8 @@ export class InputManager {
 		this.keyboardMouse.setPointerLockChangeCallback(callback);
 	}
 
-	attachTouchControls(root: HTMLElement): void {
-		this.touch.attach(root);
+	attachTouchControls(root: HTMLElement, equipCallbacks?: TouchEquipCallbacks): void {
+		this.touch.attach(root, equipCallbacks);
 	}
 
 	detachTouchControls(): void {

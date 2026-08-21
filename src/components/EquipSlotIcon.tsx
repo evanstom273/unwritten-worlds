@@ -8,6 +8,10 @@ const TEXTURE_CLASS: Partial<Record<TextureId, string>> = {
 	[TextureId.GRASS_SIDE]: 'equip-icon-grass-side',
 	[TextureId.DIRT]: 'equip-icon-dirt',
 	[TextureId.STONE]: 'equip-icon-stone',
+	[TextureId.PLANKS]: 'equip-icon-planks',
+	[TextureId.GLASS]: 'equip-icon-glass',
+	[TextureId.LOG_TOP]: 'equip-icon-log-top',
+	[TextureId.LOG_SIDE]: 'equip-icon-log',
 };
 
 interface EquipSlotIconProps {

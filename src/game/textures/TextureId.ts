@@ -3,6 +3,10 @@ export const TextureId = {
 	GRASS_SIDE: 1,
 	DIRT: 2,
 	STONE: 3,
+	PLANKS: 4,
+	GLASS: 5,
+	LOG_TOP: 6,
+	LOG_SIDE: 7,
 } as const;
 
 export type TextureId = (typeof TextureId)[keyof typeof TextureId];
@@ -45,6 +49,10 @@ export const TEXTURE_ATLAS_LAYOUT: TextureAtlasLayout = {
 		[TextureId.GRASS_SIDE, tileUV(1, 0)],
 		[TextureId.DIRT, tileUV(0, 1)],
 		[TextureId.STONE, tileUV(1, 1)],
+		[TextureId.PLANKS, tileUV(2, 0)],
+		[TextureId.GLASS, tileUV(3, 0)],
+		[TextureId.LOG_TOP, tileUV(2, 1)],
+		[TextureId.LOG_SIDE, tileUV(3, 1)],
 	]),
 };
 

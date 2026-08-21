@@ -139,6 +139,7 @@ body,
 .touch-joystick {
 	grid-area: joy;
 	position: relative;
+	z-index: 1;
 	width: clamp(100px, 18vmin, 180px);
 	height: clamp(100px, 18vmin, 180px);
 	pointer-events: auto;
@@ -180,8 +181,10 @@ body,
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	min-width: clamp(34px, 7vmin, 48px);
-	min-height: clamp(34px, 7vmin, 48px);
+	position: relative;
+	z-index: 2;
+	min-width: clamp(40px, 8vmin, 52px);
+	min-height: clamp(40px, 8vmin, 52px);
 	padding: 0;
 	pointer-events: auto;
 	touch-action: manipulation;
@@ -403,4 +406,21 @@ body,
 
 .equip-icon-stone {
 	background: #7a7a7a;
+}
+
+.equip-icon-planks {
+	background: linear-gradient(#c9a066 25%, #b8894f 25%, #b8894f 50%, #c9a066 50%, #c9a066 75%, #b8894f 75%);
+}
+
+.equip-icon-glass {
+	background: rgba(180, 220, 240, 0.55);
+	border: 1px solid rgba(200, 235, 255, 0.6);
+}
+
+.equip-icon-log {
+	background: linear-gradient(90deg, #6b4a2a 20%, #8b6238 20%, #8b6238 40%, #6b4a2a 40%, #6b4a2a 60%, #8b6238 60%, #8b6238 80%, #6b4a2a 80%);
+}
+
+.equip-icon-log-top {
+	background: radial-gradient(circle, #5a3d22 15%, #8b6238 16%, #8b6238 35%, #6b4a2a 36%, #6b4a2a 55%, #8b6238 56%);
 }

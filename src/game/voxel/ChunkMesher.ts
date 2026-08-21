@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { isOpaqueBlock } from './BlockId';
+import { isOpaqueBlock, isSolidBlock } from './BlockId';
 import type { BlockId } from './BlockId';
+import type { BlockState } from './BlockState';
 import type { ChunkColumn } from './ChunkColumn';
 import { faceFromDirection, getBlockFaceTexture } from '../textures/BlockDefinition';
 import { getAtlasTile } from '../textures/TextureId';
@@ -98,15 +99,16 @@ export class ChunkMesher {
 				for (let localZ = 0; localZ < CHUNK_SIZE; localZ++) {
 					for (let localX = 0; localX < CHUNK_SIZE; localX++) {
 						const blockId = section.getBlock(localX, localY, localZ);
-						if (!isOpaqueBlock(blockId)) {
+						if (!isSolidBlock(blockId)) {
 							continue;
 						}
 
+						const blockState = section.getBlockState(localX, localY, localZ);
 						const worldX = baseX + localX;
 						const worldY = baseY + localY;
 						const worldZ = baseZ + localZ;
 
-						this.emitBlockFaces(world, blockId, worldX, worldY, worldZ);
+						this.emitBlockFaces(world, blockId, blockState, worldX, worldY, worldZ);
 					}
 				}
 			}
@@ -127,6 +129,7 @@ export class ChunkMesher {
 	private emitBlockFaces(
 		world: World,
 		blockId: BlockId,
+		blockState: BlockState,
 		worldX: number,
 		worldY: number,
 		worldZ: number,
@@ -143,7 +146,7 @@ export class ChunkMesher {
 			}
 
 			const blockFace = faceFromDirection(face.dx, face.dy, face.dz);
-			const textureId = getBlockFaceTexture(blockId, blockFace);
+			const textureId = getBlockFaceTexture(blockId, blockFace, blockState);
 			if (textureId === undefined) {
 				continue;
 			}
