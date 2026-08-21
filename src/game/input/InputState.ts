@@ -16,6 +16,10 @@ export interface InputState {
 	cycleLeftHand: boolean;
 	cycleRightHand: boolean;
 	cycleUtility: boolean;
+	resetTop: boolean;
+	resetLeftHand: boolean;
+	resetRightHand: boolean;
+	resetUtility: boolean;
 }
 
 export type InputMode = 'keyboard-mouse' | 'touch';
@@ -39,5 +43,9 @@ export function createEmptyInputState(): InputState {
 		cycleLeftHand: false,
 		cycleRightHand: false,
 		cycleUtility: false,
+		resetTop: false,
+		resetLeftHand: false,
+		resetRightHand: false,
+		resetUtility: false,
 	};
 }

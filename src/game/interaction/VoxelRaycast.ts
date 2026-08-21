@@ -6,6 +6,7 @@ export interface VoxelTarget {
 	readonly blockX: number;
 	readonly blockY: number;
 	readonly blockZ: number;
+	/** Last empty voxel traversed immediately before the solid hit — primary placement candidate. */
 	readonly placeX: number;
 	readonly placeY: number;
 	readonly placeZ: number;

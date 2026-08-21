@@ -40,6 +40,20 @@ export class QuickEquipManager {
 		const current = this.selectedIndex.get(channel) ?? 0;
 		const next = (current + direction + channelEntries.length) % channelEntries.length;
 		this.selectedIndex.set(channel, next);
+		this.markChanged(channel);
+	}
+
+	resetToFirst(channel: QuickEquipChannel): void {
+		const channelEntries = this.entries.get(channel) ?? [];
+		if (channelEntries.length === 0) {
+			return;
+		}
+
+		this.selectedIndex.set(channel, 0);
+		this.markChanged(channel);
+	}
+
+	private markChanged(channel: QuickEquipChannel): void {
 		this.lastChangedChannel = channel;
 		this.lastChangedAtMs = performance.now();
 	}

@@ -194,34 +194,58 @@ export class Game {
 
 	cycleEquipChannel(channel: QuickEquipChannel): void {
 		this.quickEquip.cycle(channel);
+		this.notifyQuickEquipChanged();
+	}
+
+	resetEquipChannel(channel: QuickEquipChannel): void {
+		this.quickEquip.resetToFirst(channel);
+		this.notifyQuickEquipChanged();
+	}
+
+	private notifyQuickEquipChanged(): void {
 		if (this.quickEquipCallback) {
 			this.quickEquipCallback(this.quickEquip.getSnapshot());
 		}
 	}
 
 	private handleEquipmentInput(input: ReturnType<InputManager['poll']>): void {
+		let changed = false;
+
 		if (input.cycleLeftHand) {
 			this.quickEquip.cycle(QuickEquipChannel.LEFT_HAND);
+			changed = true;
 		}
 		if (input.cycleRightHand) {
 			this.quickEquip.cycle(QuickEquipChannel.RIGHT_HAND);
+			changed = true;
 		}
 		if (input.cycleTop) {
 			this.quickEquip.cycle(QuickEquipChannel.TOP);
+			changed = true;
 		}
 		if (input.cycleUtility) {
 			this.quickEquip.cycle(QuickEquipChannel.UTILITY);
+			changed = true;
+		}
+		if (input.resetLeftHand) {
+			this.quickEquip.resetToFirst(QuickEquipChannel.LEFT_HAND);
+			changed = true;
+		}
+		if (input.resetRightHand) {
+			this.quickEquip.resetToFirst(QuickEquipChannel.RIGHT_HAND);
+			changed = true;
+		}
+		if (input.resetTop) {
+			this.quickEquip.resetToFirst(QuickEquipChannel.TOP);
+			changed = true;
+		}
+		if (input.resetUtility) {
+			this.quickEquip.resetToFirst(QuickEquipChannel.UTILITY);
+			changed = true;
 		}
 
-		if (
-			input.cycleLeftHand ||
-			input.cycleRightHand ||
-			input.cycleTop ||
-			input.cycleUtility
-		) {
-			if (this.quickEquipCallback) {
-				this.quickEquipCallback(this.quickEquip.getSnapshot());
-			}
+		if (changed) {
+			this.notifyQuickEquipChanged();
 		}
 	}
 
@@ -267,11 +291,15 @@ export class Game {
 		input: ReturnType<InputManager['poll']>,
 		player: ReturnType<PlayerController['getState']>,
 	): void {
-		if (input.primaryActionPressed && this.lastTarget.hit) {
+		if (!this.lastTarget.hit) {
+			return;
+		}
+
+		if (input.primaryActionPressed) {
 			this.blockInteraction.tryBreak(this.lastTarget);
 		}
 
-		if (input.secondaryActionPressed && this.lastTarget.hit) {
+		if (input.secondaryActionPressed) {
 			this.blockInteraction.tryPlace(
 				this.lastTarget,
 				player.positionX,

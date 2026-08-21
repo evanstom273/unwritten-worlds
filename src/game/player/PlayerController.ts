@@ -62,17 +62,10 @@ export class PlayerController {
 		const wasGrounded = this.grounded;
 		this.landingImpact = 0;
 
-		if (input.flyTogglePressed) {
-			this.flying = !this.flying;
-			if (this.flying) {
-				this.velocityY = 0;
-			}
-		}
-
 		if (input.jumpPressed) {
 			const now = performance.now();
 			if (now - this.lastJumpPressMs <= DOUBLE_TAP_JUMP_MS) {
-				this.flying = true;
+				this.flying = !this.flying;
 				this.velocityY = 0;
 				this.lastJumpPressMs = 0;
 			} else {
