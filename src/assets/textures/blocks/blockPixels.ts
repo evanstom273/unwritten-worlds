@@ -46,6 +46,33 @@ function cellHash(cellX: number, cellY: number, seed: number): number {
 	return (Math.sin(fx * 3 + seed) * Math.cos(fy * 2 + seed * 1.5) + 1) * 0.5;
 }
 
+function torusDelta(a: number, b: number, size: number): number {
+	let delta = Math.abs(a - b);
+	if (delta > size / 2) {
+		delta = size - delta;
+	}
+	return delta;
+}
+
+function torusDistSq(x: number, y: number, cx: number, cy: number): number {
+	const dx = torusDelta(x, cx, TILE_SIZE);
+	const dy = torusDelta(y, cy, TILE_SIZE);
+	return dx * dx + dy * dy;
+}
+
+function inEllipse(
+	x: number,
+	y: number,
+	cx: number,
+	cy: number,
+	rx: number,
+	ry: number,
+): boolean {
+	const dx = torusDelta(x, cx, TILE_SIZE);
+	const dy = torusDelta(y, cy, TILE_SIZE);
+	return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1;
+}
+
 export function createPixelGrid(
 	width: number,
 	height: number,
@@ -92,140 +119,223 @@ function blendEdgePixels(
 	}
 }
 
-const GRASS_BRIGHT = rgb(88, 148, 52);
-const GRASS_MID = rgb(68, 128, 42);
-const GRASS_DARK = rgb(52, 102, 34);
-const GRASS_SHADOW = rgb(42, 86, 28);
+const GRASS_BRIGHT = rgb(92, 152, 56);
+const GRASS_MID = rgb(72, 132, 46);
+const GRASS_DARK = rgb(56, 108, 36);
+const GRASS_SHADOW = rgb(46, 92, 30);
+
+function grassTuftShade(x: number, y: number): number {
+	let shade = 0;
+	const anchors = [
+		[3, 5], [11, 2], [19, 7], [27, 4],
+		[6, 14], [14, 18], [22, 12], [30, 16],
+		[4, 24], [12, 28], [20, 22], [26, 27],
+	];
+	for (const [ax, ay] of anchors) {
+		const d2 = torusDistSq(x, y, ax, ay);
+		if (d2 <= 2) {
+			shade = Math.max(shade, 3);
+		} else if (d2 <= 5) {
+			shade = Math.max(shade, 2);
+		} else if (d2 <= 9) {
+			shade = Math.max(shade, 1);
+		}
+	}
+	return shade;
+}
+
+function grassPatchTone(x: number, y: number): number {
+	const cellX = Math.floor(x / 8);
+	const cellY = Math.floor(y / 8);
+	return cellHash(cellX, cellY, 101);
+}
 
 export const GRASS_TOP_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
-	const macro = seamlessHash(x >> 2, y >> 2, 1);
-	const meso = seamlessHash(x, y, 1.5);
-	const micro = fineNoise(x, y, 11);
+	const patch = grassPatchTone(x, y);
+	let color = GRASS_MID;
 
-	let color = mixRgb(GRASS_MID, GRASS_DARK, macro * 0.55 + meso * 0.25);
-	color = mixRgb(color, GRASS_BRIGHT, Math.max(0, micro - 0.62) * 1.8);
-
-	const bladeSeed = Math.floor(seamlessHash(x >> 1, y >> 1, 12) * 5);
-	const bladeLine = (x * 2 + y * 3 + bladeSeed) % 7 === 0;
-	if (bladeLine) {
-		color = mixRgb(color, GRASS_SHADOW, 0.35 + micro * 0.2);
+	if (patch > 0.66) {
+		color = mixRgb(GRASS_MID, GRASS_BRIGHT, (patch - 0.66) * 2.2);
+	} else if (patch < 0.34) {
+		color = mixRgb(GRASS_MID, GRASS_DARK, (0.34 - patch) * 2.2);
 	}
 
-	const clump = seamlessHash(x >> 1, y >> 1, 13);
-	if (clump > 0.78) {
-		color = mixRgb(color, GRASS_BRIGHT, (clump - 0.78) * 3.5);
-	} else if (clump < 0.18) {
-		color = mixRgb(color, GRASS_DARK, (0.18 - clump) * 2.5);
+	const tuft = grassTuftShade(x, y);
+	if (tuft === 3) {
+		color = mixRgb(color, GRASS_SHADOW, 0.42);
+	} else if (tuft === 2) {
+		color = mixRgb(color, GRASS_DARK, 0.28);
+	} else if (tuft === 1) {
+		color = mixRgb(color, GRASS_BRIGHT, 0.18);
 	}
 
-	if (fineNoise(x, y, 14) > 0.93) {
-		color = mixRgb(color, rgb(196, 188, 72), 0.55);
+	const softBlob = inEllipse(x, y, 16, 16, 11, 9);
+	if (softBlob && patch > 0.5) {
+		color = mixRgb(color, GRASS_BRIGHT, 0.12);
 	}
 
 	return color;
 });
 
-export const GRASS_SIDE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
-	const variation = seamlessHash(x, y, 2) * 14 + fineNoise(x, y, 21) * 8;
+const DIRT_MID = rgb(112, 80, 48);
+const DIRT_LIGHT = rgb(128, 94, 58);
+const DIRT_DARK = rgb(92, 64, 38);
+const DIRT_DEEP = rgb(78, 54, 32);
 
-	if (y < 10) {
-		const blade = fineNoise(x, y, 22);
-		let grass = mixRgb(GRASS_MID, GRASS_BRIGHT, blade);
-		if ((x + Math.floor(seamlessHash(0, y, 23) * 4)) % 3 === 0 && y < 8) {
-			grass = mixRgb(grass, GRASS_SHADOW, 0.4);
+function dirtClumpShade(x: number, y: number): number {
+	const clumps = [
+		{ cx: 5, cy: 4, rx: 4, ry: 3 },
+		{ cx: 18, cy: 7, rx: 5, ry: 4 },
+		{ cx: 28, cy: 3, rx: 3, ry: 3 },
+		{ cx: 9, cy: 17, rx: 4, ry: 5 },
+		{ cx: 23, cy: 19, rx: 5, ry: 4 },
+		{ cx: 2, cy: 26, rx: 4, ry: 4 },
+		{ cx: 15, cy: 28, rx: 5, ry: 3 },
+		{ cx: 27, cy: 24, rx: 4, ry: 4 },
+	];
+
+	for (const clump of clumps) {
+		if (inEllipse(x, y, clump.cx, clump.cy, clump.rx, clump.ry)) {
+			const cx = clump.cx;
+			const cy = clump.cy;
+			const dx = torusDelta(x, cx, TILE_SIZE);
+			const dy = torusDelta(y, cy, TILE_SIZE);
+			const edge = (dx * dx) / (clump.rx * clump.rx) + (dy * dy) / (clump.ry * clump.ry);
+			if (edge > 0.72) {
+				return -1;
+			}
+			return 1;
 		}
-		if (y >= 6 && fineNoise(x, y, 24) > 0.82) {
-			grass = mixRgb(grass, rgb(58, 38, 22), 0.25);
+	}
+	return 0;
+}
+
+export const GRASS_SIDE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
+	if (y < 9) {
+		let color = GRASS_MID;
+		const tuft = grassTuftShade(x, y);
+		if (tuft >= 2) {
+			color = mixRgb(color, GRASS_SHADOW, 0.35);
+		} else if (tuft === 1) {
+			color = mixRgb(color, GRASS_BRIGHT, 0.2);
 		}
-		return rgb(
-			grass[0] + variation * 0.3,
-			grass[1] + variation * 0.2,
-			grass[2] + variation * 0.1,
-		);
+
+		if (y >= 5 && (x + Math.floor(seamlessHash(0, y, 201) * 3)) % 5 === 0) {
+			color = mixRgb(color, rgb(58, 40, 24), 0.22);
+		}
+
+		return color;
 	}
 
-	const t = (y - 10) / 22;
-	const grass = rgb(62 + variation * 0.35, 112 + variation * 0.25, 36);
-	const dirt = rgb(112 + variation, 78 + variation * 0.45, 46 + variation * 0.35);
-	let color = mixRgb(grass, dirt, t * t);
+	if (y < 13) {
+		const t = (y - 9) / 4;
+		const grass = mixRgb(GRASS_MID, GRASS_DARK, 0.35);
+		return mixRgb(grass, DIRT_MID, t);
+	}
 
-	if (y > 14) {
-		const pebble = cellHash(x >> 2, y >> 2, 25);
-		if (pebble > 0.82) {
-			color = mixRgb(color, rgb(92, 88, 84), 0.45);
-		}
-		if (fineNoise(x, y, 26) > 0.88) {
-			color = mixRgb(color, rgb(68, 48, 28), 0.35);
-		}
+	let color = DIRT_MID;
+	const clump = dirtClumpShade(x, y);
+	if (clump > 0) {
+		color = mixRgb(color, DIRT_LIGHT, 0.35);
+	} else if (clump < 0) {
+		color = mixRgb(color, DIRT_DARK, 0.3);
+	}
+
+	const patch = cellHash(Math.floor(x / 8), Math.floor(y / 8), 202);
+	if (patch > 0.72) {
+		color = mixRgb(color, DIRT_LIGHT, 0.15);
+	} else if (patch < 0.28) {
+		color = mixRgb(color, DIRT_DARK, 0.12);
+	}
+
+	if (inEllipse(x, y, 24, 22, 2, 2)) {
+		color = mixRgb(color, rgb(98, 94, 88), 0.4);
 	}
 
 	return color;
 });
 
 export const DIRT_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
-	const macro = seamlessHash(x >> 2, y >> 2, 4);
-	const meso = seamlessHash(x, y, 4.2);
-	const micro = fineNoise(x, y, 41);
+	let color = DIRT_MID;
+	const clump = dirtClumpShade(x, y);
 
-	let color = rgb(
-		108 + macro * 22 + meso * 10,
-		76 + macro * 14 + meso * 8,
-		44 + macro * 10 + meso * 6,
-	);
-
-	const pebbleCell = cellHash(x >> 2, y >> 2, 42);
-	const pebbleX = (x % 4) - 1.5;
-	const pebbleY = (y % 4) - 1.5;
-	if (pebbleCell > 0.72 && pebbleX * pebbleX + pebbleY * pebbleY < 1.8) {
-		color = mixRgb(color, rgb(98, 94, 90), 0.65);
+	if (clump > 0) {
+		color = mixRgb(color, DIRT_LIGHT, 0.32);
+	} else if (clump < 0) {
+		color = mixRgb(color, DIRT_DARK, 0.28);
 	}
 
-	if (micro > 0.86) {
-		color = mixRgb(color, rgb(138, 98, 58), 0.35);
-	} else if (micro < 0.12) {
-		color = mixRgb(color, rgb(72, 52, 32), 0.4);
+	const patch = cellHash(Math.floor(x / 8), Math.floor(y / 8), 203);
+	if (patch > 0.7) {
+		color = mixRgb(color, DIRT_LIGHT, 0.14);
+	} else if (patch < 0.3) {
+		color = mixRgb(color, DIRT_DEEP, 0.12);
 	}
 
-	const worm = fineNoise(x >> 1, y >> 1, 43);
-	if (worm > 0.92 && worm < 0.96) {
-		color = mixRgb(color, rgb(58, 42, 26), 0.5);
+	if (inEllipse(x, y, 7, 11, 2, 2) || inEllipse(x, y, 26, 28, 2, 1)) {
+		color = mixRgb(color, rgb(96, 92, 86), 0.38);
 	}
 
-	const rootLine = (x + y * 2 + Math.floor(macro * 5)) % 11 === 0;
-	if (rootLine) {
-		color = mixRgb(color, rgb(82, 58, 34), 0.3);
+	const rootArc = inEllipse(x, y, 16, 0, 14, 4) && y < 6;
+	if (rootArc) {
+		color = mixRgb(color, DIRT_DEEP, 0.18);
 	}
 
 	return color;
 });
 
+const STONE_BASE = rgb(118, 118, 122);
+const STONE_LIGHT = rgb(142, 142, 148);
+const STONE_MID = rgb(108, 108, 112);
+const STONE_DARK = rgb(88, 88, 92);
+const STONE_DEEP = rgb(74, 74, 78);
+
+function stoneMassShade(x: number, y: number): number {
+	const masses = [
+		{ cx: 7, cy: 6, rx: 6, ry: 5, shade: 1 },
+		{ cx: 22, cy: 5, rx: 7, ry: 4, shade: -1 },
+		{ cx: 14, cy: 16, rx: 8, ry: 6, shade: 1 },
+		{ cx: 28, cy: 18, rx: 5, ry: 5, shade: -1 },
+		{ cx: 4, cy: 24, rx: 6, ry: 5, shade: -1 },
+		{ cx: 20, cy: 27, rx: 7, ry: 4, shade: 1 },
+	];
+
+	for (const mass of masses) {
+		if (inEllipse(x, y, mass.cx, mass.cy, mass.rx, mass.ry)) {
+			return mass.shade;
+		}
+	}
+	return 0;
+}
+
+function nearStoneCrack(x: number, y: number): boolean {
+	const crackA = Math.abs(y - (10 + Math.round(Math.sin(x * 0.45) * 1.5)));
+	const crackB = Math.abs(
+		y - (22 + Math.round(Math.sin((x + 8) * 0.38 + 1.2) * 1.2)),
+	);
+	const crackC = Math.abs((x - 16) - Math.round(Math.sin(y * 0.35) * 2));
+	return crackA <= 0 || crackB <= 0 || (crackC <= 0 && y > 6 && y < 26);
+}
+
 export const STONE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
-	const cluster = seamlessHash(x >> 2, y >> 2, 5);
-	const grain = seamlessHash(x, y, 6);
-	const speck = fineNoise(x, y, 51);
+	let color = STONE_BASE;
+	const mass = stoneMassShade(x, y);
 
-	let base = 108 + cluster * 28 + grain * 12 + speck * 6;
-	let color = rgb(base, base, base + 4);
-
-	const crackA = Math.abs(fineNoise(x, y, 52) - fineNoise(x + 1, y, 52)) > 0.42;
-	const crackB = Math.abs(fineNoise(x, y, 53) - fineNoise(x, y + 1, 53)) > 0.42;
-	if (crackA || crackB) {
-		color = mixRgb(color, rgb(72, 72, 76), 0.55);
+	if (mass > 0) {
+		color = mixRgb(color, STONE_LIGHT, 0.42);
+	} else if (mass < 0) {
+		color = mixRgb(color, STONE_DARK, 0.38);
 	}
 
-	if (cluster > 0.82) {
-		color = mixRgb(color, rgb(148, 148, 152), 0.35);
-	} else if (cluster < 0.15) {
-		color = mixRgb(color, rgb(82, 82, 86), 0.45);
+	const region = cellHash(Math.floor(x / 8), Math.floor(y / 8), 301);
+	if (region > 0.68 && mass === 0) {
+		color = mixRgb(color, STONE_MID, 0.2);
+	} else if (region < 0.32 && mass === 0) {
+		color = mixRgb(color, STONE_DARK, 0.15);
 	}
 
-	if (speck > 0.94) {
-		color = mixRgb(color, rgb(168, 172, 178), 0.5);
-	}
-
-	const vein = seamlessHash(x + y, x - y, 54);
-	if (vein > 0.88 && vein < 0.92) {
-		color = mixRgb(color, rgb(96, 98, 108), 0.4);
+	if (nearStoneCrack(x, y)) {
+		color = mixRgb(color, STONE_DEEP, 0.65);
 	}
 
 	return color;
@@ -270,66 +380,117 @@ export const PLANKS_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
 	return color;
 });
 
+const LOG_HEART = rgb(88, 58, 34);
+const LOG_RING_DARK = rgb(108, 72, 42);
+const LOG_RING_MID = rgb(132, 92, 54);
+const LOG_RING_LIGHT = rgb(156, 112, 66);
+
+function logRingIndex(x: number, y: number): number {
+	const centerX = 15.5;
+	const centerY = 15.5;
+	const dx = x - centerX;
+	const dy = y - centerY;
+	const angle = Math.atan2(dy, dx);
+	const wobble =
+		Math.sin(angle * 5 + 0.8) * 1.2 +
+		Math.sin(angle * 9 - 1.4) * 0.6 +
+		Math.sin((x + y) * 0.35) * 0.5;
+	const ring = Math.hypot(dx, dy) + wobble;
+	return Math.floor(ring / 2.4);
+}
+
 export const LOG_TOP_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
-	const centerX = x - (TILE_SIZE - 1) / 2;
-	const centerY = y - (TILE_SIZE - 1) / 2;
-	const angle = Math.atan2(centerY, centerX);
-	const wobble = Math.sin(angle * 7 + seamlessHash(x, y, 8) * 4) * 1.4;
-	const ring = Math.hypot(centerX, centerY) + wobble;
-	const ringNoise = fineNoise(x, y, 81) * 10 + seamlessHash(x, y, 8) * 8;
-	const base = 118 + ringNoise;
+	const dx = x - 15.5;
+	const dy = y - 15.5;
+	const dist = Math.hypot(dx, dy);
 
-	const heartwood = rgb(base * 0.48, base * 0.32, base * 0.18);
-	const ringDark = rgb(base * 0.62, base * 0.42, base * 0.24);
-	const ringLight = rgb(base * 0.86, base * 0.62, base * 0.36);
-	const sapwood = rgb(base * 0.78, base * 0.56, base * 0.32);
-
-	if (ring < 3.5) {
-		return heartwood;
+	if (dist < 3.2) {
+		return LOG_HEART;
 	}
 
-	const ringBand = ring / 2.8;
-	const ringFrac = ringBand - Math.floor(ringBand);
-	if (ringFrac < 0.18) {
-		return mixRgb(ringDark, ringLight, ringFrac / 0.18);
+	const ring = logRingIndex(x, y);
+	const ringFrac = (dist % 2.4) / 2.4;
+
+	if (ringFrac < 0.22) {
+		return mixRgb(LOG_RING_DARK, LOG_RING_MID, ringFrac / 0.22);
 	}
 
-	let color = mixRgb(sapwood, ringLight, fineNoise(x, y, 82) * 0.35);
+	let color = ring % 2 === 0 ? LOG_RING_MID : LOG_RING_LIGHT;
 
-	const crack = Math.abs(Math.sin(angle * 5 + seamlessHash(x >> 2, y >> 2, 83) * 3)) < 0.06 && ring > 6;
-	if (crack) {
-		color = mixRgb(color, ringDark, 0.55);
+	const angle = Math.atan2(dy, dx);
+	if (Math.abs(Math.sin(angle * 4 + dist * 0.3)) < 0.07 && dist > 5) {
+		color = mixRgb(color, LOG_RING_DARK, 0.45);
+	}
+
+	if (inEllipse(x, y, 22, 10, 2, 1)) {
+		color = mixRgb(color, LOG_RING_DARK, 0.35);
 	}
 
 	return color;
 });
 
+const BARK_BASE = rgb(118, 82, 48);
+const BARK_RAISED = rgb(138, 98, 58);
+const BARK_GROOVE = rgb(72, 48, 28);
+const BARK_KNOT = rgb(58, 38, 22);
+
+function barkGrooveDepth(x: number, y: number): number {
+	const grooves = [
+		{ base: 4, phase: 0.0, amp: 1.6, breakAt: [7, 19] },
+		{ base: 11, phase: 1.3, amp: 1.2, breakAt: [4, 24] },
+		{ base: 18, phase: 2.1, amp: 1.8, breakAt: [11, 28] },
+		{ base: 26, phase: 0.7, amp: 1.4, breakAt: [15] },
+	];
+
+	let depth = 0;
+	for (const groove of grooves) {
+		const wobble = Math.round(Math.sin(y * 0.38 + groove.phase) * groove.amp);
+		const gx = (groove.base + wobble + TILE_SIZE) % TILE_SIZE;
+		const dist = torusDelta(x, gx, TILE_SIZE);
+		if (dist > 1) {
+			continue;
+		}
+
+		let broken = false;
+		for (const breakY of groove.breakAt) {
+			if (Math.abs(y - breakY) <= 1) {
+				broken = true;
+				break;
+			}
+		}
+		if (!broken) {
+			depth = Math.max(depth, dist === 0 ? 2 : 1);
+		}
+	}
+
+	if (inEllipse(x, y, 9, 13, 2, 2) || inEllipse(x, y, 23, 25, 2, 1)) {
+		depth = Math.max(depth, 2);
+	}
+
+	return depth;
+}
+
 export const LOG_SIDE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
-	const strip = Math.floor((x + Math.floor(seamlessHash(0, y >> 2, 9) * 3)) / 5);
-	const stripPhase = cellHash(strip, 0, 91);
-	const ridge = Math.abs((x + Math.floor(stripPhase * 4)) % 5 - 2) < 0.6;
+	const groove = barkGrooveDepth(x, y);
+	let color = BARK_BASE;
 
-	const barkBase = 102 + seamlessHash(x >> 1, y >> 2, 9) * 22 + fineNoise(x, y, 92) * 10;
-	let color = rgb(barkBase * 0.78, barkBase * 0.55, barkBase * 0.32);
-
-	if (ridge) {
-		color = mixRgb(color, rgb(68, 46, 26), 0.45);
-	} else {
-		color = mixRgb(color, rgb(128, 88, 50), 0.2);
+	if (groove === 2) {
+		color = BARK_GROOVE;
+	} else if (groove === 1) {
+		color = mixRgb(BARK_GROOVE, BARK_BASE, 0.35);
+	} else if ((x + y) % 7 === 0 && groove === 0) {
+		color = mixRgb(BARK_BASE, BARK_RAISED, 0.25);
 	}
 
-	const lenticel = y % 6 === 2 && fineNoise(x, y, 93) > 0.72 && fineNoise(x, y, 93) < 0.78;
-	if (lenticel) {
-		color = mixRgb(color, rgb(92, 72, 48), 0.5);
+	if (inEllipse(x, y, 9, 13, 2, 2)) {
+		color = mixRgb(color, BARK_KNOT, 0.55);
+	}
+	if (inEllipse(x, y, 23, 25, 2, 1)) {
+		color = mixRgb(color, BARK_KNOT, 0.45);
 	}
 
-	const mossPatch = seamlessHash(x >> 2, y >> 2, 94);
-	if (mossPatch > 0.84 && ridge) {
-		color = mixRgb(color, rgb(58, 82, 38), 0.35);
-	}
-
-	if (fineNoise(x, y, 95) > 0.92) {
-		color = mixRgb(color, rgb(48, 32, 18), 0.35);
+	if (y % 9 === 5 && torusDelta(x, 14, TILE_SIZE) <= 1) {
+		color = mixRgb(color, rgb(96, 74, 48), 0.35);
 	}
 
 	return color;
