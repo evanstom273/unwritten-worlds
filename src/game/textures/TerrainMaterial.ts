@@ -1,8 +1,12 @@
 import * as THREE from 'three';
 import {
 	DIRT_PIXELS,
+	GLASS_PIXELS,
 	GRASS_SIDE_PIXELS,
 	GRASS_TOP_PIXELS,
+	LOG_SIDE_PIXELS,
+	LOG_TOP_PIXELS,
+	PLANKS_PIXELS,
 	STONE_PIXELS,
 } from '../../assets/textures/blocks/blockPixels';
 import {
@@ -39,6 +43,10 @@ export function createTerrainAtlasTexture(): THREE.Texture {
 	blitTile(atlasData, TEXTURE_ATLAS_WIDTH, 1, 0, GRASS_SIDE_PIXELS);
 	blitTile(atlasData, TEXTURE_ATLAS_WIDTH, 0, 1, DIRT_PIXELS);
 	blitTile(atlasData, TEXTURE_ATLAS_WIDTH, 1, 1, STONE_PIXELS);
+	blitTile(atlasData, TEXTURE_ATLAS_WIDTH, 2, 0, PLANKS_PIXELS);
+	blitTile(atlasData, TEXTURE_ATLAS_WIDTH, 3, 0, GLASS_PIXELS);
+	blitTile(atlasData, TEXTURE_ATLAS_WIDTH, 2, 1, LOG_TOP_PIXELS);
+	blitTile(atlasData, TEXTURE_ATLAS_WIDTH, 3, 1, LOG_SIDE_PIXELS);
 
 	const texture = new THREE.DataTexture(
 		atlasData,
@@ -60,6 +68,7 @@ export function createSharedTerrainMaterial(
 ): THREE.MeshLambertMaterial {
 	return new THREE.MeshLambertMaterial({
 		map: atlasTexture,
-		transparent: false,
+		transparent: true,
+		alphaTest: 0.1,
 	});
 }

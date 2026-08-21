@@ -1,4 +1,4 @@
-import { isOpaqueBlock } from '../voxel/BlockId';
+import { isSolidBlock } from '../voxel/BlockId';
 import type { World } from '../voxel/World';
 import { blockFaceFromNormal, type BlockFace } from './BlockFace';
 
@@ -117,7 +117,7 @@ export function raycastVoxels(
 			break;
 		}
 
-		if (!isOpaqueBlock(world.getBlock(currentX, currentY, currentZ))) {
+		if (!isSolidBlock(world.getBlock(currentX, currentY, currentZ))) {
 			continue;
 		}
 

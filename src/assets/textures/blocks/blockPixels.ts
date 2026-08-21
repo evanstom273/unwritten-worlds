@@ -99,3 +99,40 @@ export const STONE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
 	const base = 118 + variation;
 	return rgb(base, base, base + 2);
 });
+
+export const PLANKS_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
+	const plankRow = Math.floor(y / 4);
+	const grain = seamlessHash(x, plankRow, 7) * 14;
+	const base = 168 + grain;
+	return rgb(base, base * 0.72, base * 0.42);
+});
+
+export const LOG_TOP_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
+	const centerX = x - (TILE_SIZE - 1) / 2;
+	const centerY = y - (TILE_SIZE - 1) / 2;
+	const ring = Math.hypot(centerX, centerY);
+	const ringNoise = seamlessHash(x, y, 8) * 12;
+	const base = 118 + ringNoise;
+	if (ring < 2) {
+		return rgb(base * 0.55, base * 0.38, base * 0.22);
+	}
+	if (Math.abs(ring - 5) < 0.8 || Math.abs(ring - 8) < 0.8) {
+		return rgb(base * 0.65, base * 0.45, base * 0.26);
+	}
+	return rgb(base * 0.82, base * 0.58, base * 0.34);
+});
+
+export const LOG_SIDE_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
+	const bark = seamlessHash(x >> 1, y, 9) * 18;
+	const base = 108 + bark;
+	return rgb(base * 0.78, base * 0.55, base * 0.32);
+});
+
+export const GLASS_PIXELS = createPixelGrid(TILE_SIZE, TILE_SIZE, (x, y) => {
+	const shimmer = seamlessHash(x, y, 10) * 20;
+	return rgb(180 + shimmer * 0.4, 210 + shimmer * 0.5, 230 + shimmer * 0.3);
+});
+
+for (let index = 3; index < GLASS_PIXELS.length; index += 4) {
+	GLASS_PIXELS[index] = 96;
+}

@@ -1,4 +1,6 @@
-import { BlockId, isOpaqueBlock } from './BlockId';
+import { BlockId, isOpaqueBlock, isSolidBlock } from './BlockId';
+import type { BlockState } from './BlockState';
+import { DEFAULT_BLOCK_STATE } from './BlockState';
 import { ChunkColumn } from './ChunkColumn';
 import {
 	CHUNK_SIZE,
@@ -36,6 +38,23 @@ export class World {
 		const localX = worldX - chunkX * CHUNK_SIZE;
 		const localZ = worldZ - chunkZ * CHUNK_SIZE;
 		return column.getBlock(localX, worldY, localZ);
+	}
+
+	getBlockState(worldX: number, worldY: number, worldZ: number): BlockState {
+		if (!this.isInBounds(worldX, worldY, worldZ)) {
+			return DEFAULT_BLOCK_STATE;
+		}
+
+		const chunkX = Math.floor(worldX / CHUNK_SIZE);
+		const chunkZ = Math.floor(worldZ / CHUNK_SIZE);
+		const column = this.columns.get(this.columnKey(chunkX, chunkZ));
+		if (!column) {
+			return DEFAULT_BLOCK_STATE;
+		}
+
+		const localX = worldX - chunkX * CHUNK_SIZE;
+		const localZ = worldZ - chunkZ * CHUNK_SIZE;
+		return column.getBlockState(localX, worldY, localZ);
 	}
 
 	getChunkColumn(chunkX: number, chunkZ: number): ChunkColumn | undefined {
@@ -81,7 +100,7 @@ export class World {
 			return true;
 		}
 
-		return isOpaqueBlock(this.getBlock(blockX, blockY, blockZ));
+		return isSolidBlock(this.getBlock(blockX, blockY, blockZ));
 	}
 
 	findHighestSolidBlock(worldX: number, worldZ: number): number | null {
@@ -97,7 +116,13 @@ export class World {
 		return null;
 	}
 
-	setBlock(worldX: number, worldY: number, worldZ: number, blockId: BlockId): boolean {
+	setBlock(
+		worldX: number,
+		worldY: number,
+		worldZ: number,
+		blockId: BlockId,
+		blockState: BlockState = DEFAULT_BLOCK_STATE,
+	): boolean {
 		if (!this.isInBounds(worldX, worldY, worldZ)) {
 			return false;
 		}
@@ -112,7 +137,7 @@ export class World {
 
 		const localX = worldX - chunkX * CHUNK_SIZE;
 		const localZ = worldZ - chunkZ * CHUNK_SIZE;
-		column.setBlock(localX, worldY, localZ, blockId);
+		column.setBlock(localX, worldY, localZ, blockId, blockState);
 		return true;
 	}
 
